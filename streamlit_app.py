@@ -104,7 +104,7 @@ if df is not None:
 
     # Filter by request status (show rows where request status is 'pending')
     st.subheader("Rows where 'Request Status' is 'Pending'")
-    pending_df = df[df['request status'] == 'pending']
+    pending_df = df[df['request status'] == 'Pending']
     st.dataframe(pending_df)
 
     # Additional Filtering or Analysis options
