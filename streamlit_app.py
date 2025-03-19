@@ -102,10 +102,12 @@ if df is not None:
     st.write("Data cleaned successfully!")
     st.dataframe(df.head())  # Show the first few rows of the cleaned data
 
-    # Filter by request status (show rows where request status is 'pending')
-    st.subheader("Rows where 'Request Status' is 'Pending'")
-    pending_df = df[df['request status'] == 'Pending']
-    st.dataframe(pending_df)
+    # Standardizing and filtering 'request status' to handle possible variations
+    if 'request status' in df.columns:
+        df['request status'] = df['request status'].str.lower().str.strip()  # Standardize the request status
+        pending_df = df[df['request status'] == 'pending']  # Filter for rows where 'request status' is 'pending'
+        st.subheader("Rows where 'Request Status' is 'Pending'")
+        st.dataframe(pending_df)
 
     # Additional Filtering or Analysis options
     st.subheader("Data Analysis")
