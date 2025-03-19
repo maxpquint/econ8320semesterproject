@@ -16,9 +16,30 @@ def import_excel_from_github(sheet_name=0):
         df = pd.read_excel(BytesIO(response.content), sheet_name=sheet_name)
         st.write("Excel file successfully loaded into DataFrame.")
 
-        # Standardizing the 'request status' column to lowercase immediately after loading the data
-        if 'request status' in df.columns:
-            df['request status'] = df['request status'].str.lower().str.strip()
+        # Adjusting column names manually to match the raw CSV format, including 'Payment Submitted?' and 'Application Signed?'
+        df.columns = [
+            'Pt State',  
+            'Request Status', 
+            'Gender', 
+            'Race', 
+            'Insurance Type', 
+            'Total Household Gross Monthly Income', 
+            'Payment Submitted?',  # Changed 'Payment Submitted' to 'Payment Submitted?'
+            'Grant Req Date',
+            'Application Signed?'  # Added 'Application Signed?'
+            # Add any other columns from the raw data in the same format here
+        ]
+
+        # Standardizing the 'Request Status' column to lowercase immediately after loading the data
+        if 'Request Status' in df.columns:
+            df['Request Status'] = df['Request Status'].str.lower().str.strip()
+
+        # Clean 'Application Signed?' column (standardizing values to "Yes", "No", or "N/A")
+        if 'Application Signed?' in df.columns:
+            application_signed_options = ['yes', 'no', 'n/a']
+            df['Application Signed?'] = df['Application Signed?'].astype(str).apply(
+                lambda x: process.extractOne(x.lower(), application_signed_options)[0] if x else 'N/A'
+            )
 
         # Define state to postal dictionary
         state_to_postal = {
@@ -32,9 +53,9 @@ def import_excel_from_github(sheet_name=0):
             "Minnesota": "MN"
         }
 
-        # Clean 'State' column
-        if 'State' in df.columns:
-            df['State'] = df['State'].astype(str).apply(lambda x: state_to_postal.get(process.extractOne(x, list(state_to_postal.keys()))[0], x) if x else x)
+        # Clean 'Pt State' column (was 'State' before)
+        if 'Pt State' in df.columns:
+            df['Pt State'] = df['Pt State'].astype(str).apply(lambda x: state_to_postal.get(process.extractOne(x, list(state_to_postal.keys()))[0], x) if x else x)
 
         # Ensure 'Total Household Gross Monthly Income' is numeric
         if 'Total Household Gross Monthly Income' in df.columns:
@@ -50,13 +71,13 @@ def import_excel_from_github(sheet_name=0):
                 (4 if x > 100000 else pd.NA)))
             )
 
-        # Clean 'gender' column
-        if 'gender' in df.columns:
+        # Clean 'Gender' column
+        if 'Gender' in df.columns:
             gender_options = ['male', 'female', 'transgender', 'nonbinary', 'decline to answer', 'other']
-            df['gender'] = df['gender'].astype(str).apply(lambda x: process.extractOne(x, gender_options)[0] if x else x)
+            df['Gender'] = df['Gender'].astype(str).apply(lambda x: process.extractOne(x, gender_options)[0] if x else x)
 
-        # Clean 'race' column
-        if 'race' in df.columns:
+        # Clean 'Race' column
+        if 'Race' in df.columns:
             race_options = [
                 'American Indian or Alaska Native', 
                 'Asian', 
@@ -68,27 +89,27 @@ def import_excel_from_github(sheet_name=0):
                 'other', 
                 'two or more'
             ]
-            df['race'] = df['race'].astype(str).apply(lambda x: process.extractOne(x, race_options)[0] if x else x)
+            df['Race'] = df['Race'].astype(str).apply(lambda x: process.extractOne(x, race_options)[0] if x else x)
 
-        # Clean 'insurance type' column
-        if 'insurance type' in df.columns:
+        # Clean 'Insurance Type' column
+        if 'Insurance Type' in df.columns:
             insurance_options = [
                 'medicare', 'medicaid', 'medicare & medicaid', 'uninsured', 
                 'private', 'military', 'unknown'
             ]
-            df['insurance type'] = df['insurance type'].astype(str).apply(lambda x: process.extractOne(x, insurance_options)[0] if x else x)
+            df['Insurance Type'] = df['Insurance Type'].astype(str).apply(lambda x: process.extractOne(x, insurance_options)[0] if x else x)
 
-        # Clean 'request status' column again (just to be sure it's lowercased)
-        if 'request status' in df.columns:
-            df['request status'] = df['request status'].str.lower().str.strip()  # Ensure it's lowercased
+        # Clean 'Request Status' column again (just to be sure it's lowercased)
+        if 'Request Status' in df.columns:
+            df['Request Status'] = df['Request Status'].str.lower().str.strip()  # Ensure it's lowercased
 
-        # Clean 'payment submitted' column (convert date strings to NaT or keep them as NaT if empty)
-        if 'payment submitted' in df.columns:
-            df['payment submitted'] = pd.to_datetime(df['payment submitted'], errors='coerce')
+        # Clean 'Payment Submitted?' column (convert date strings to NaT or keep them as NaT if empty)
+        if 'Payment Submitted?' in df.columns:
+            df['Payment Submitted?'] = pd.to_datetime(df['Payment Submitted?'], errors='coerce')
 
-        # Clean 'grant req date' column (convert to datetime)
-        if 'grant req date' in df.columns:
-            df['grant req date'] = pd.to_datetime(df['grant req date'], errors='coerce')
+        # Clean 'Grant Req Date' column (convert to datetime)
+        if 'Grant Req Date' in df.columns:
+            df['Grant Req Date'] = pd.to_datetime(df['Grant Req Date'], errors='coerce')
 
         return df
     except Exception as e:
@@ -102,18 +123,18 @@ st.title('UNO Service Learning Data Dashboard')
 # Load the data
 df = import_excel_from_github()
 
-# Display the column names in the DataFrame
+# Display the updated column names in the DataFrame
 if df is not None:
-    st.write("Column names in the dataset:")
-    st.write(df.columns)  # This will display the column names in the Streamlit app
+    st.write("Updated Column names in the dataset:")
+    st.write(df.columns)  # Display the column names in the Streamlit app
 
     st.write("Data cleaned successfully!")
     st.dataframe(df.head())  # Show the first few rows of the cleaned data
 
-    # Standardizing and filtering 'request status' to handle possible variations
-    if 'request status' in df.columns:
-        # Filter the DataFrame to show rows where 'request status' ends with 'pending', case insensitive
-        pending_df = df[df['request status'].str.endswith('pending', na=False)]  # Make case-insensitive check
+    # Standardizing and filtering 'Request Status' to handle possible variations
+    if 'Request Status' in df.columns:
+        # Filter the DataFrame to show rows where 'Request Status' ends with 'pending', case insensitive
+        pending_df = df[df['Request Status'].str.endswith('pending', na=False)]  # Make case-insensitive check
         
         # Display the rows where request status ends with 'pending' in the same way
         st.subheader("Rows where 'Request Status' ends with 'Pending'")
