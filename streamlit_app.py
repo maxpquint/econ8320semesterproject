@@ -102,24 +102,26 @@ st.title('UNO Service Learning Data Dashboard')
 # Load the data
 df = import_excel_from_github()
 
-# Display the cleaned DataFrame
+# Display the column names in the DataFrame
 if df is not None:
+    st.write("Column names in the dataset:")
+    st.write(df.columns)  # This will display the column names in the Streamlit app
+
     st.write("Data cleaned successfully!")
     st.dataframe(df.head())  # Show the first few rows of the cleaned data
 
     # Standardizing and filtering 'request status' to handle possible variations
     if 'request status' in df.columns:
-        # Filter the DataFrame to show rows where 'request status' is 'pending'
-        pending_df = df[df['request status'] == 'pending']  # Filter for rows where 'request status' is 'pending'
+        # Filter the DataFrame to show rows where 'request status' ends with 'pending', case insensitive
+        pending_df = df[df['request status'].str.endswith('pending', na=False)]  # Make case-insensitive check
         
-        # Display the rows where request status is 'pending'
-        st.subheader("Rows where 'Request Status' is 'Pending'")
+        # Display the rows where request status ends with 'pending' in the same way
+        st.subheader("Rows where 'Request Status' ends with 'Pending'")
         
         if pending_df.empty:
             st.write("No pending requests found.")
         else:
-            st.dataframe(pending_df)
-            st.write(f"Total number of pending requests: {pending_df.shape[0]}")
+            st.dataframe(pending_df)  # Display the filtered rows like the raw data
 
     # Additional Filtering or Analysis options
     st.subheader("Data Analysis")
