@@ -11,24 +11,23 @@ def import_excel_from_github(sheet_name=0):
     github_raw_url = "https://github.com/maxpquint/econ8320semesterproject/raw/main/UNO%20Service%20Learning%20Data%20Sheet%20De-Identified%20Version.xlsx"
     
     try:
+        # Load the data from GitHub
         response = requests.get(github_raw_url)
         response.raise_for_status()  # Raise an error for bad responses (4xx and 5xx)
         df = pd.read_excel(BytesIO(response.content), sheet_name=sheet_name)
         st.write("Excel file successfully loaded into DataFrame.")
 
-        # Adjusting column names manually to match the raw CSV format, including 'Payment Submitted?' and 'Application Signed?'
-        df.columns = [
-            'Pt State',  
-            'Request Status', 
-            'Gender', 
-            'Race', 
-            'Insurance Type', 
-            'Total Household Gross Monthly Income', 
-            'Payment Submitted?',  # Changed 'Payment Submitted' to 'Payment Submitted?'
-            'Grant Req Date',
-            'Application Signed?'  # Added 'Application Signed?'
-            # Add any other columns from the raw data in the same format here
-        ]
+        # Display the raw column names to verify
+        st.write("Raw column names:")
+        st.write(df.columns)  # Display the actual column names from the raw data
+
+        # If you want to manually modify some column names after reading them, you can do it here:
+        # Rename specific columns to match your desired format
+        df.rename(columns={
+            'State': 'Pt State', 
+            'Payment Submitted': 'Payment Submitted?', 
+            'Application Signed': 'Application Signed?'
+        }, inplace=True)
 
         # Standardizing the 'Request Status' column to lowercase immediately after loading the data
         if 'Request Status' in df.columns:
