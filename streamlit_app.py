@@ -16,6 +16,10 @@ def import_excel_from_github(sheet_name=0):
         df = pd.read_excel(BytesIO(response.content), sheet_name=sheet_name)
         st.write("Excel file successfully loaded into DataFrame.")
 
+        # Standardizing the 'request status' column to lowercase immediately after loading the data
+        if 'request status' in df.columns:
+            df['request status'] = df['request status'].str.lower().str.strip()
+
         # Define state to postal dictionary
         state_to_postal = {
             "Nebraska": "NE",
@@ -74,9 +78,9 @@ def import_excel_from_github(sheet_name=0):
             ]
             df['insurance type'] = df['insurance type'].astype(str).apply(lambda x: process.extractOne(x, insurance_options)[0] if x else x)
 
-        # Clean 'request status' column
+        # Clean 'request status' column again (just to be sure it's lowercased)
         if 'request status' in df.columns:
-            df['request status'] = df['request status'].astype(str).apply(lambda x: process.extractOne(x, ['pending', 'approved', 'denied'])[0] if x else x)
+            df['request status'] = df['request status'].str.lower().str.strip()  # Ensure it's lowercased
 
         # Clean 'payment submitted' column (convert date strings to NaT or keep them as NaT if empty)
         if 'payment submitted' in df.columns:
@@ -105,7 +109,6 @@ if df is not None:
 
     # Standardizing and filtering 'request status' to handle possible variations
     if 'request status' in df.columns:
-        df['request status'] = df['request status'].str.lower().str.strip()  # Standardize the request status
         pending_df = df[df['request status'] == 'pending']  # Filter for rows where 'request status' is 'pending'
         
         # Display the rows where request status is 'pending'
