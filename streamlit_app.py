@@ -126,9 +126,9 @@ if df is not None:
     st.write(f"Total number of rows in the dataset: {df.shape[0]}")
 
     # Add functionality to download the cleaned data as a CSV
-    @st.cache
+    @st.cache_data
     def convert_df(df):
-        # IMPORTANT: Cache the conversion to avoid re-running on every interaction
+        # Cache the conversion to avoid re-running on every interaction
         return df.to_csv(index=False)
 
     csv = convert_df(df)
