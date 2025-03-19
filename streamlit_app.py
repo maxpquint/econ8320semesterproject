@@ -5,6 +5,7 @@ import requests
 from io import BytesIO
 from thefuzz import process
 import streamlit as st
+import io
 
 def import_excel_from_github(sheet_name=0):
     github_raw_url = "https://github.com/maxpquint/econ8320semesterproject/raw/main/UNO%20Service%20Learning%20Data%20Sheet%20De-Identified%20Version.xlsx"
@@ -120,5 +121,22 @@ if df is not None:
     # Additional Filtering or Analysis options
     st.subheader("Data Analysis")
     st.write(f"Total number of rows in the dataset: {df.shape[0]}")
+
+    # Add functionality to download the cleaned data as a CSV
+    @st.cache
+    def convert_df(df):
+        # IMPORTANT: Cache the conversion to avoid re-running on every interaction
+        return df.to_csv(index=False)
+
+    csv = convert_df(df)
+
+    # Provide a download button for the CSV file
+    st.download_button(
+        label="Download Cleaned Data as CSV",
+        data=csv,
+        file_name='cleaned_data.csv',
+        mime='text/csv'
+    )
 else:
     st.write("Failed to load and clean data.")
+
