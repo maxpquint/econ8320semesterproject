@@ -105,7 +105,7 @@ if df is not None:
     # Standardizing and filtering 'request status' to handle possible variations
     if 'request status' in df.columns:
         df['request status'] = df['request status'].str.lower().str.strip()  # Standardize the request status
-        pending_df = df[df['request status'] == 'pending']  # Filter for rows where 'request status' is 'pending'
+        pending_df = df[df['request status'] == 'Pending']  # Filter for rows where 'request status' is 'pending'
         st.subheader("Rows where 'Request Status' is 'Pending'")
         st.dataframe(pending_df)
 
