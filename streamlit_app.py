@@ -109,16 +109,16 @@ if df is not None:
 
     # Standardizing and filtering 'request status' to handle possible variations
     if 'request status' in df.columns:
+        # Filter the DataFrame to show rows where 'request status' is 'pending'
         pending_df = df[df['request status'] == 'pending']  # Filter for rows where 'request status' is 'pending'
         
         # Display the rows where request status is 'pending'
         st.subheader("Rows where 'Request Status' is 'Pending'")
-        st.dataframe(pending_df)
-
-        # Check if there are pending requests before trying to access shape
+        
         if pending_df.empty:
             st.write("No pending requests found.")
         else:
+            st.dataframe(pending_df)
             st.write(f"Total number of pending requests: {pending_df.shape[0]}")
 
     # Additional Filtering or Analysis options
