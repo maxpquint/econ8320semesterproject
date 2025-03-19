@@ -5,22 +5,21 @@ import requests
 from io import BytesIO
 from thefuzz import process
 import streamlit as st
-import io
 
+# Function to import and clean the Excel file
 def import_excel_from_github(sheet_name=0):
     github_raw_url = "https://github.com/maxpquint/econ8320semesterproject/raw/main/UNO%20Service%20Learning%20Data%20Sheet%20De-Identified%20Version.xlsx"
     
     try:
+        # Fetch and read the Excel file from GitHub
         response = requests.get(github_raw_url)
         response.raise_for_status()  # Raise an error for bad responses (4xx and 5xx)
         df = pd.read_excel(BytesIO(response.content), sheet_name=sheet_name)
-        st.write("Excel file successfully loaded into DataFrame.")
-
-        # Standardizing the 'request status' column to lowercase immediately after loading the data
-        if 'request status' in df.columns:
-            df['request status'] = df['request status'].str.lower().str.strip()
-
-        # Define state to postal dictionary
+        
+        # Standardizing all column names to lowercase and replacing spaces with underscores
+        df.columns = df.columns.str.lower().str.replace(' ', '_')
+        
+        # Dictionaries for cleaning the columns
         state_to_postal = {
             "Nebraska": "NE",
             "Iowa": "IA",
@@ -32,114 +31,89 @@ def import_excel_from_github(sheet_name=0):
             "Minnesota": "MN"
         }
 
-        # Clean 'State' column
-        if 'State' in df.columns:
-            df['State'] = df['State'].astype(str).apply(lambda x: state_to_postal.get(process.extractOne(x, list(state_to_postal.keys()))[0], x) if x else x)
+        gender_options = ['male', 'female', 'transgender', 'nonbinary', 'decline to answer', 'other']
+        
+        race_options = [
+            'american_indian_or_alaska_native', 
+            'asian', 
+            'black_or_african_american', 
+            'middle_eastern_or_north_african', 
+            'native_hawaiian_or_pacific_islander', 
+            'white', 
+            'decline_to_answer', 
+            'other', 
+            'two_or_more'
+        ]
 
-        # Ensure 'Total Household Gross Monthly Income' is numeric
-        if 'Total Household Gross Monthly Income' in df.columns:
-            df['Total Household Gross Monthly Income'] = pd.to_numeric(df['Total Household Gross Monthly Income'], errors='coerce')
-
-        # Add income classification column
-        if 'Total Household Gross Monthly Income' in df.columns:
-            df['Annualized Income'] = df['Total Household Gross Monthly Income'] * 12
-            df['Income Level'] = df['Annualized Income'].apply(
-                lambda x: 1 if x <= 12000 else 
-                (2 if 12001 <= x <= 47000 else 
-                (3 if 47001 <= x <= 100000 else 
-                (4 if x > 100000 else pd.NA)))
-            )
+        insurance_options = [
+            'medicare', 'medicaid', 'medicare_&_medicaid', 'uninsured', 
+            'private', 'military', 'unknown'
+        ]
+        
+        # Clean 'request_status' column
+        df['request_status'] = df['request_status'].str.lower().str.strip()
 
         # Clean 'gender' column
         if 'gender' in df.columns:
-            gender_options = ['male', 'female', 'transgender', 'nonbinary', 'decline to answer', 'other']
             df['gender'] = df['gender'].astype(str).apply(lambda x: process.extractOne(x, gender_options)[0] if x else x)
 
         # Clean 'race' column
         if 'race' in df.columns:
-            race_options = [
-                'American Indian or Alaska Native', 
-                'Asian', 
-                'Black or African American', 
-                'Middle Eastern or North African', 
-                'Native Hawaiian or Pacific Islander', 
-                'White', 
-                'decline to answer', 
-                'other', 
-                'two or more'
-            ]
             df['race'] = df['race'].astype(str).apply(lambda x: process.extractOne(x, race_options)[0] if x else x)
 
-        # Clean 'insurance type' column
-        if 'insurance type' in df.columns:
-            insurance_options = [
-                'medicare', 'medicaid', 'medicare & medicaid', 'uninsured', 
-                'private', 'military', 'unknown'
-            ]
-            df['insurance type'] = df['insurance type'].astype(str).apply(lambda x: process.extractOne(x, insurance_options)[0] if x else x)
+        # Clean 'insurance_type' column
+        if 'insurance_type' in df.columns:
+            df['insurance_type'] = df['insurance_type'].astype(str).apply(lambda x: process.extractOne(x, insurance_options)[0] if x else x)
 
-        # Clean 'request status' column again (just to be sure it's lowercased)
-        if 'request status' in df.columns:
-            df['request status'] = df['request status'].str.lower().str.strip()  # Ensure it's lowercased
+        # Clean 'state' column using the state_to_postal dictionary
+        if 'state' in df.columns:
+            df['state'] = df['state'].astype(str).apply(lambda x: state_to_postal.get(process.extractOne(x, list(state_to_postal.keys()))[0], x) if x else x)
 
-        # Clean 'payment submitted' column (convert date strings to NaT or keep them as NaT if empty)
-        if 'payment submitted' in df.columns:
-            df['payment submitted'] = pd.to_datetime(df['payment submitted'], errors='coerce')
+        # Ensure 'total_household_gross_monthly_income' is numeric
+        df['total_household_gross_monthly_income'] = pd.to_numeric(df['total_household_gross_monthly_income'], errors='coerce')
 
-        # Clean 'grant req date' column (convert to datetime)
-        if 'grant req date' in df.columns:
-            df['grant req date'] = pd.to_datetime(df['grant req date'], errors='coerce')
+        # Add income classification column based on the annualized income
+        df['annualized_income'] = df['total_household_gross_monthly_income'] * 12
+        df['income_level'] = df['annualized_income'].apply(
+            lambda x: 1 if x <= 12000 else 
+            (2 if 12001 <= x <= 47000 else 
+            (3 if 47001 <= x <= 100000 else 
+            (4 if x > 100000 else pd.NA)))
+        )
+
+        # Clean 'payment_submitted' column (convert date strings to NaT or keep them as NaT if empty)
+        df['payment_submitted'] = pd.to_datetime(df['payment_submitted'], errors='coerce')
+
+        # Clean 'grant_req_date' column (convert to datetime)
+        df['grant_req_date'] = pd.to_datetime(df['grant_req_date'], errors='coerce')
 
         return df
+    
     except Exception as e:
-        st.error(f"Error loading Excel file: {e}")
+        print(f"Error loading Excel file: {e}")
         return None
 
-
-# Streamlit interface
-st.title('UNO Service Learning Data Dashboard')
-
-# Load the data
+# Streamlit app code starts here
+# Load and clean the data
 df = import_excel_from_github()
 
-# Display the cleaned DataFrame
 if df is not None:
-    st.write("Data cleaned successfully!")
-    st.dataframe(df.head())  # Show the first few rows of the cleaned data
+    # Show the cleaned data
+    st.write("Cleaned DataFrame:", df.head())
+    
+    # Filter and show only the rows where 'request_status' is 'pending'
+    pending_df = df[df['request_status'] == 'pending']
+    st.write(f"Total number of pending requests: {pending_df.shape[0]}")
+    st.write("Pending Requests:", pending_df)
 
-    # Standardizing and filtering 'request status' to handle possible variations
-    if 'request status' in df.columns:
-        pending_df = df[df['request status'] == 'pending']  # Filter for rows where 'request status' is 'pending'
-        
-        # Display the rows where request status is 'pending'
-        st.subheader("Rows where 'Request Status' is 'Pending'")
-        st.dataframe(pending_df)
-
-        # Check if there are pending requests before trying to access shape
-        if pending_df.empty:
-            st.write("No pending requests found.")
-        else:
-            st.write(f"Total number of pending requests: {pending_df.shape[0]}")
-
-    # Additional Filtering or Analysis options
-    st.subheader("Data Analysis")
-    st.write(f"Total number of rows in the dataset: {df.shape[0]}")
-
-    # Add functionality to download the cleaned data as a CSV
-    @st.cache
-    def convert_df(df):
-        # IMPORTANT: Cache the conversion to avoid re-running on every interaction
-        return df.to_csv(index=False)
-
-    csv = convert_df(df)
-
-    # Provide a download button for the CSV file
+    # Allow user to download the cleaned data as a CSV
     st.download_button(
         label="Download Cleaned Data as CSV",
-        data=csv,
+        data=df.to_csv(index=False).encode('utf-8'),
         file_name='cleaned_data.csv',
         mime='text/csv'
     )
+
 else:
     st.write("Failed to load and clean data.")
 
