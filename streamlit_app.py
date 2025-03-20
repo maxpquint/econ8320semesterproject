@@ -22,12 +22,12 @@ def import_excel_from_github(sheet_name=0):
         st.write("Raw column names:")
         st.write(df.columns)  # Display the actual column names from the raw data
 
-        # Replace "Missing" with NaN in selected columns that are likely to have "Missing" values
+        # Replace "Missing" with NaN directly in selected columns
         columns_with_missing_values = [
             'State', 'Gender', 'Race', 'Insurance Type', 'Request Status', 'Application Signed?', 'Pt State'
         ]
         
-        # Replace "Missing" with NaN in these columns only
+        # Directly replace "Missing" with NaN in these columns only (avoid fuzzy matching for these columns)
         for column in columns_with_missing_values:
             if column in df.columns:
                 df[column] = df[column].replace("Missing", np.nan)
@@ -80,12 +80,12 @@ def import_excel_from_github(sheet_name=0):
                 (4 if x > 100000 else pd.NA)))
             )
 
-        # Clean 'Gender' column
+        # Clean 'Gender' column using fuzzy matching
         if 'Gender' in df.columns:
             gender_options = ['male', 'female', 'transgender', 'nonbinary', 'decline to answer', 'other']
-            df['Gender'] = df['Gender'].astype(str).apply(lambda x: process.extractOne(x, gender_options)[0] if x else x)
+            df['Gender'] = df['Gender'].astype(str).apply(lambda x: process.extractOne(x, gender_options)[0] if pd.notna(x) else x)
 
-        # Clean 'Race' column
+        # Clean 'Race' column using fuzzy matching
         if 'Race' in df.columns:
             race_options = [
                 'American Indian or Alaska Native', 
@@ -98,15 +98,15 @@ def import_excel_from_github(sheet_name=0):
                 'other', 
                 'two or more'
             ]
-            df['Race'] = df['Race'].astype(str).apply(lambda x: process.extractOne(x, race_options)[0] if x else x)
+            df['Race'] = df['Race'].astype(str).apply(lambda x: process.extractOne(x, race_options)[0] if pd.notna(x) else x)
 
-        # Clean 'Insurance Type' column
+        # Clean 'Insurance Type' column using fuzzy matching
         if 'Insurance Type' in df.columns:
             insurance_options = [
                 'medicare', 'medicaid', 'medicare & medicaid', 'uninsured', 
                 'private', 'military', 'unknown'
             ]
-            df['Insurance Type'] = df['Insurance Type'].astype(str).apply(lambda x: process.extractOne(x, insurance_options)[0] if x else x)
+            df['Insurance Type'] = df['Insurance Type'].astype(str).apply(lambda x: process.extractOne(x, insurance_options)[0] if pd.notna(x) else x)
 
         # Clean 'Request Status' column again (just to be sure it's lowercased)
         if 'Request Status' in df.columns:
