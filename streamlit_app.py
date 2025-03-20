@@ -22,8 +22,15 @@ def import_excel_from_github(sheet_name=0):
         st.write("Raw column names:")
         st.write(df.columns)  # Display the actual column names from the raw data
 
-        # Replace "Missing" strings with NaN across the entire DataFrame
-        df.replace("Missing", np.nan, inplace=True)
+        # Replace "Missing" with NaN in selected columns that are likely to have "Missing" values
+        columns_with_missing_values = [
+            'State', 'Gender', 'Race', 'Insurance Type', 'Request Status', 'Application Signed?', 'Pt State'
+        ]
+        
+        # Replace "Missing" with NaN in these columns only
+        for column in columns_with_missing_values:
+            if column in df.columns:
+                df[column] = df[column].replace("Missing", np.nan)
 
         # Rename specific columns to match your desired format
         df.rename(columns={ 
