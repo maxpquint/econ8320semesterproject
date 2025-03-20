@@ -6,6 +6,7 @@ from io import BytesIO
 from thefuzz import process
 import streamlit as st
 import io
+import numpy as np  # For NaN
 
 def import_excel_from_github(sheet_name=0):
     github_raw_url = "https://github.com/maxpquint/econ8320semesterproject/raw/main/UNO%20Service%20Learning%20Data%20Sheet%20De-Identified%20Version.xlsx"
@@ -21,9 +22,11 @@ def import_excel_from_github(sheet_name=0):
         st.write("Raw column names:")
         st.write(df.columns)  # Display the actual column names from the raw data
 
-        # If you want to manually modify some column names after reading them, you can do it here:
+        # Replace "Missing" strings with NaN across the entire DataFrame
+        df.replace("Missing", np.nan, inplace=True)
+
         # Rename specific columns to match your desired format
-        df.rename(columns={
+        df.rename(columns={ 
             'State': 'Pt State', 
             'Payment Submitted': 'Payment Submitted?', 
             'Application Signed': 'Application Signed?'
@@ -137,7 +140,7 @@ if df is not None:
         
         # Display the rows where request status ends with 'pending' in the same way
         st.subheader("Rows where 'Request Status' ends with 'Pending'")
-        
+
         if pending_df.empty:
             st.write("No pending requests found.")
         else:
