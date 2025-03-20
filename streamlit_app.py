@@ -22,15 +22,8 @@ def import_excel_from_github(sheet_name=0):
         st.write("Raw column names:")
         st.write(df.columns)  # Display the actual column names from the raw data
 
-        # Replace "Missing" with NaN directly in selected columns
-        columns_with_missing_values = [
-            'State', 'Gender', 'Race', 'Insurance Type', 'Request Status', 'Application Signed?', 'Pt State'
-        ]
-        
-        # Directly replace "Missing" with NaN in these columns only (avoid fuzzy matching for these columns)
-        for column in columns_with_missing_values:
-            if column in df.columns:
-                df[column] = df[column].replace("Missing", np.nan)
+        # Replace all occurrences of "Missing" with NaN in the entire DataFrame
+        df.replace("Missing", np.nan, inplace=True)
 
         # Rename specific columns to match your desired format
         df.rename(columns={ 
@@ -47,7 +40,7 @@ def import_excel_from_github(sheet_name=0):
         if 'Application Signed?' in df.columns:
             application_signed_options = ['yes', 'no', 'n/a']
             df['Application Signed?'] = df['Application Signed?'].astype(str).apply(
-                lambda x: process.extractOne(x.lower(), application_signed_options)[0] if x else 'N/A'
+                lambda x: process.extractOne(x.lower(), application_signed_options)[0] if pd.notna(x) else 'N/A'
             )
 
         # Define state to postal dictionary
@@ -64,7 +57,7 @@ def import_excel_from_github(sheet_name=0):
 
         # Clean 'Pt State' column (was 'State' before)
         if 'Pt State' in df.columns:
-            df['Pt State'] = df['Pt State'].astype(str).apply(lambda x: state_to_postal.get(process.extractOne(x, list(state_to_postal.keys()))[0], x) if x else x)
+            df['Pt State'] = df['Pt State'].astype(str).apply(lambda x: state_to_postal.get(process.extractOne(x, list(state_to_postal.keys()))[0], x) if pd.notna(x) else x)
 
         # Ensure 'Total Household Gross Monthly Income' is numeric
         if 'Total Household Gross Monthly Income' in df.columns:
