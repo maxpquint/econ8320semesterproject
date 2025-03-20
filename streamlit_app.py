@@ -22,28 +22,28 @@ def import_excel_from_github(sheet_name=0):
         st.write("Raw column names:")
         st.write(df.columns)  # Display the actual column names from the raw data
 
-        # Replace all occurrences of "Missing" (case insensitive) with NaN in the entire DataFrame
+        # Step 1: Replace all occurrences of "Missing" (case insensitive) with NaN across the entire DataFrame
         df.replace(to_replace=r'(?i)^missing$', value=np.nan, regex=True, inplace=True)
 
-        # Rename specific columns to match your desired format
+        # Step 2: Rename specific columns to match your desired format
         df.rename(columns={ 
             'State': 'Pt State', 
             'Payment Submitted': 'Payment Submitted?', 
             'Application Signed': 'Application Signed?'
         }, inplace=True)
 
-        # Standardizing the 'Request Status' column to lowercase immediately after loading the data
+        # Step 3: Standardizing the 'Request Status' column to lowercase immediately after loading the data
         if 'Request Status' in df.columns:
             df['Request Status'] = df['Request Status'].str.lower().str.strip()
 
-        # Clean 'Application Signed?' column (standardizing values to "Yes", "No", or "N/A")
+        # Step 4: Clean 'Application Signed?' column (standardizing values to "Yes", "No", or "N/A")
         if 'Application Signed?' in df.columns:
             application_signed_options = ['yes', 'no', 'n/a']
             df['Application Signed?'] = df['Application Signed?'].astype(str).apply(
                 lambda x: process.extractOne(x.lower(), application_signed_options)[0] if pd.notna(x) else 'N/A'
             )
 
-        # Define state to postal dictionary
+        # Step 5: Define state to postal dictionary
         state_to_postal = {
             "Nebraska": "NE",
             "Iowa": "IA",
@@ -55,15 +55,16 @@ def import_excel_from_github(sheet_name=0):
             "Minnesota": "MN"
         }
 
-        # Clean 'Pt State' column (was 'State' before)
+        # Step 6: Clean 'Pt State' column (was 'State' before) using fuzzy matching
         if 'Pt State' in df.columns:
-            df['Pt State'] = df['Pt State'].astype(str).apply(lambda x: state_to_postal.get(process.extractOne(x, list(state_to_postal.keys()))[0], x) if pd.notna(x) else x)
+            df['Pt State'] = df['Pt State'].astype(str).apply(
+                lambda x: state_to_postal.get(process.extractOne(x, list(state_to_postal.keys()))[0], x) if pd.notna(x) else x)
 
-        # Ensure 'Total Household Gross Monthly Income' is numeric
+        # Step 7: Ensure 'Total Household Gross Monthly Income' is numeric
         if 'Total Household Gross Monthly Income' in df.columns:
             df['Total Household Gross Monthly Income'] = pd.to_numeric(df['Total Household Gross Monthly Income'], errors='coerce')
 
-        # Add income classification column
+        # Step 8: Add income classification column
         if 'Total Household Gross Monthly Income' in df.columns:
             df['Annualized Income'] = df['Total Household Gross Monthly Income'] * 12
             df['Income Level'] = df['Annualized Income'].apply(
@@ -73,12 +74,12 @@ def import_excel_from_github(sheet_name=0):
                 (4 if x > 100000 else pd.NA)))
             )
 
-        # Clean 'Gender' column using fuzzy matching
+        # Step 9: Clean 'Gender' column using fuzzy matching
         if 'Gender' in df.columns:
             gender_options = ['male', 'female', 'transgender', 'nonbinary', 'decline to answer', 'other']
             df['Gender'] = df['Gender'].astype(str).apply(lambda x: process.extractOne(x, gender_options)[0] if pd.notna(x) else x)
 
-        # Clean 'Race' column using fuzzy matching
+        # Step 10: Clean 'Race' column using fuzzy matching
         if 'Race' in df.columns:
             race_options = [
                 'American Indian or Alaska Native', 
@@ -93,7 +94,7 @@ def import_excel_from_github(sheet_name=0):
             ]
             df['Race'] = df['Race'].astype(str).apply(lambda x: process.extractOne(x, race_options)[0] if pd.notna(x) else x)
 
-        # Clean 'Insurance Type' column using fuzzy matching
+        # Step 11: Clean 'Insurance Type' column using fuzzy matching
         if 'Insurance Type' in df.columns:
             insurance_options = [
                 'medicare', 'medicaid', 'medicare & medicaid', 'uninsured', 
@@ -101,15 +102,15 @@ def import_excel_from_github(sheet_name=0):
             ]
             df['Insurance Type'] = df['Insurance Type'].astype(str).apply(lambda x: process.extractOne(x, insurance_options)[0] if pd.notna(x) else x)
 
-        # Clean 'Request Status' column again (just to be sure it's lowercased)
+        # Step 12: Clean 'Request Status' column again (just to be sure it's lowercased)
         if 'Request Status' in df.columns:
             df['Request Status'] = df['Request Status'].str.lower().str.strip()  # Ensure it's lowercased
 
-        # Clean 'Payment Submitted?' column (convert date strings to NaT or keep them as NaT if empty)
+        # Step 13: Clean 'Payment Submitted?' column (convert date strings to NaT or keep them as NaT if empty)
         if 'Payment Submitted?' in df.columns:
             df['Payment Submitted?'] = pd.to_datetime(df['Payment Submitted?'], errors='coerce')
 
-        # Clean 'Grant Req Date' column (convert to datetime)
+        # Step 14: Clean 'Grant Req Date' column (convert to datetime)
         if 'Grant Req Date' in df.columns:
             df['Grant Req Date'] = pd.to_datetime(df['Grant Req Date'], errors='coerce')
 
