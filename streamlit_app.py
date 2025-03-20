@@ -22,8 +22,8 @@ def import_excel_from_github(sheet_name=0):
         st.write("Raw column names:")
         st.write(df.columns)  # Display the actual column names from the raw data
 
-        # Replace all occurrences of "Missing" with NaN in the entire DataFrame
-        df.replace("Missing", np.nan, inplace=True)
+        # Replace all occurrences of "Missing" (case insensitive) with NaN in the entire DataFrame
+        df.replace(to_replace=r'(?i)^missing$', value=np.nan, regex=True, inplace=True)
 
         # Rename specific columns to match your desired format
         df.rename(columns={ 
@@ -167,4 +167,3 @@ if df is not None:
     )
 else:
     st.write("Failed to load and clean data.")
-
