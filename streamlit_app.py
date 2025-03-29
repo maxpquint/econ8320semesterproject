@@ -70,12 +70,18 @@ def import_excel_from_github(sheet_name=0):
                 (4 if x > 100000 else pd.NA)))
             )
 
-        # Step 9: Clean 'Gender' column using fuzzy matching, but skip NaN values
+        # Step 9: Add Age Grouping column based on the individual's age
+        if 'Age' in df.columns:
+            df['Age Group'] = df['Age'].apply(lambda x: 'Children/Adolescents' if x < 15 else 
+                                              ('Working-Age Adults' if 15 <= x <= 64 else 'The Elderly') 
+                                              if pd.notna(x) else pd.NA)
+
+        # Step 10: Clean 'Gender' column using fuzzy matching, but skip NaN values
         if 'Gender' in df.columns:
             gender_options = ['male', 'female', 'transgender', 'nonbinary', 'decline to answer', 'other']
             df['Gender'] = df['Gender'].astype(str).apply(lambda x: process.extractOne(x, gender_options)[0] if pd.notna(x) and x != 'nan' else x)
 
-        # Step 10: Clean 'Race' column using fuzzy matching, but skip NaN values
+        # Step 11: Clean 'Race' column using fuzzy matching, but skip NaN values
         if 'Race' in df.columns:
             race_options = [
                 'American Indian or Alaska Native', 
@@ -90,7 +96,7 @@ def import_excel_from_github(sheet_name=0):
             ]
             df['Race'] = df['Race'].astype(str).apply(lambda x: process.extractOne(x, race_options)[0] if pd.notna(x) and x != 'nan' else x)
 
-        # Step 11: Clean 'Insurance Type' column using fuzzy matching, but skip NaN values
+        # Step 12: Clean 'Insurance Type' column using fuzzy matching, but skip NaN values
         if 'Insurance Type' in df.columns:
             insurance_options = [
                 'medicare', 'medicaid', 'medicare & medicaid', 'uninsured', 
@@ -98,75 +104,123 @@ def import_excel_from_github(sheet_name=0):
             ]
             df['Insurance Type'] = df['Insurance Type'].astype(str).apply(lambda x: process.extractOne(x, insurance_options)[0] if pd.notna(x) and x != 'nan' else x)
 
-        # Step 12: Clean 'Request Status' column again (just to be sure it's lowercased)
+        # Step 13: Clean 'Request Status' column again (just to be sure it's lowercased)
         if 'Request Status' in df.columns:
             df['Request Status'] = df['Request Status'].str.lower().str.strip()  # Ensure it's lowercased
 
-        # Step 13: Clean 'Payment Submitted?' column (convert date strings to NaT or keep them as NaT if empty)
+        # Step 14: Clean 'Payment Submitted?' column (convert date strings to NaT or keep them as NaT if empty)
         if 'Payment Submitted?' in df.columns:
             df['Payment Submitted?'] = pd.to_datetime(df['Payment Submitted?'], errors='coerce')
 
-        # Step 14: Clean 'Grant Req Date' column (convert to datetime)
+        # Step 15: Clean 'Grant Req Date' column (convert to datetime)
         if 'Grant Req Date' in df.columns:
             df['Grant Req Date'] = pd.to_datetime(df['Grant Req Date'], errors='coerce')
+
+        # Step 16: Clean 'Marital Status' column using fuzzy matching
+        if 'Marital Status' in df.columns:
+            marital_status_options = ['single', 'married', 'widowed', 'divorced', 'domestic partnership', 'separated']
+            df['Marital Status'] = df['Marital Status'].astype(str).apply(
+                lambda x: process.extractOne(x.lower(), marital_status_options)[0] if pd.notna(x) and x != 'nan' else pd.NA
+            )
+
+        # Step 17: Clean 'Hispanic Latino' column using fuzzy matching for "yes" or "no"
+        if 'Hispanic Latino' in df.columns:
+            hispanic_latino_options = ['hispanic-latino', 'non-hispanic latino']
+            df['Hispanic Latino'] = df['Hispanic Latino'].astype(str).apply(
+                lambda x: 'Yes' if 'hispanic-latino' in process.extractOne(x.lower(), hispanic_latino_options)[0] else 'No' 
+                if pd.notna(x) else pd.NA
+            )
 
         return df
     except Exception as e:
         st.error(f"Error loading Excel file: {e}")
         return None
 
-
 # Streamlit interface
 st.title('UNO Service Learning Data Dashboard')
+
+# Sidebar for page navigation
+page = st.sidebar.selectbox("Select a Page", ["Home", "Demographic Breakout"])
 
 # Load the data
 df = import_excel_from_github()
 
-# Display the updated column names in the DataFrame
 if df is not None:
-    st.write("Updated Column names in the dataset:")
-    st.write(df.columns)  # Display the column names in the Streamlit app
+    if page == "Home":
+        # Default home page displaying pending applications
+        st.write("Data cleaned successfully!")
+        st.dataframe(df.head())
 
-    st.write("Data cleaned successfully!")
-    st.dataframe(df.head())  # Show the first few rows of the cleaned data
+        # Filter and display pending applications
+        if 'Request Status' in df.columns:
+            pending_df = df[df['Request Status'].str.endswith('pending', na=False)]
+            
+            # Filter options for "Application Signed?"
+            st.subheader("Filter Pending Applications by 'Application Signed?'")
+            signed_filter = st.selectbox("Filter by Application Signed", options=["All", "Yes", "No", "N/A"])
+            
+            if signed_filter != "All":
+                pending_df = pending_df[pending_df['Application Signed?'] == signed_filter]
+            
+            st.subheader("Filtered Pending Applications")
+            if pending_df.empty:
+                st.write("No pending requests found with the selected filter.")
+            else:
+                st.dataframe(pending_df)
+    
+    elif page == "Demographic Breakout":
+        # Sum the "Amount" by "Pt State"
+        if "Amount" in df.columns and "Pt State" in df.columns:
+            state_sum = df.groupby('Pt State')['Amount'].sum().reset_index()
+            state_sum = state_sum.sort_values(by="Amount", ascending=False)
 
-    # Filter and display pending applications
-    if 'Request Status' in df.columns:
-        # Filter the DataFrame to show rows where 'Request Status' ends with 'pending', case insensitive
-        pending_df = df[df['Request Status'].str.endswith('pending', na=False)]  # Make case-insensitive check
+            # Display the summed data
+            st.subheader("Total Amount by State")
+            st.dataframe(state_sum)
 
-        # Filter options for "Application Signed?"
-        st.subheader("Filter Pending Applications by 'Application Signed?'")
-        signed_filter = st.selectbox("Filter by Application Signed", options=["All", "Yes", "No", "N/A"])
-        
-        if signed_filter != "All":
-            pending_df = pending_df[pending_df['Application Signed?'] == signed_filter]
-        
-        # Display the filtered pending applications
-        st.subheader("Filtered Pending Applications")
-        if pending_df.empty:
-            st.write("No pending requests found with the selected filter.")
-        else:
-            st.dataframe(pending_df)  # Display the filtered rows like the raw data
+            # Sum the "Amount" by "Gender"
+            if "Gender" in df.columns:
+                gender_sum = df.groupby('Gender')['Amount'].sum().reset_index()
+                gender_sum = gender_sum.sort_values(by="Amount", ascending=False)
 
-    # Additional Filtering or Analysis options
-    st.subheader("Data Analysis")
-    st.write(f"Total number of rows in the dataset: {df.shape[0]}")
+                # Display the summed data
+                st.subheader("Total Amount by Gender")
+                st.dataframe(gender_sum)
 
-    # Add functionality to download the cleaned data as a CSV
-    @st.cache_data
-    def convert_df(df):
-        # Cache the conversion to avoid re-running on every interaction
-        return df.to_csv(index=False)
+            # Sum the "Amount" by "Income Level"
+            if "Income Level" in df.columns:
+                income_sum = df.groupby('Income Level')['Amount'].sum().reset_index()
+                income_sum = income_sum.sort_values(by="Amount", ascending=False)
 
-    csv = convert_df(df)
+                # Display the summed data
+                st.subheader("Total Amount by Income Level")
+                st.dataframe(income_sum)
 
-    # Provide a download button for the CSV file
-    st.download_button(
-        label="Download Cleaned Data as CSV",
-        data=csv,
-        file_name='cleaned_data.csv',
-        mime='text/csv'
-    )
+            # Sum the "Amount" by "Insurance Type"
+            if "Insurance Type" in df.columns:
+                insurance_sum = df.groupby('Insurance Type')['Amount'].sum().reset_index()
+                insurance_sum = insurance_sum.sort_values(by="Amount", ascending=False)
+
+                # Display the summed data
+                st.subheader("Total Amount by Insurance Type")
+                st.dataframe(insurance_sum)
+
+            # Sum the "Amount" by "Marital Status"
+            if "Marital Status" in df.columns:
+                marital_status_sum = df.groupby('Marital Status')['Amount'].sum().reset_index()
+                marital_status_sum = marital_status_sum.sort_values(by="Amount", ascending=False)
+
+                # Display the summed data
+                st.subheader("Total Amount by Marital Status")
+                st.dataframe(marital_status_sum)
+
+            # Sum the "Amount" by "Hispanic Latino"
+            if "Hispanic Latino" in df.columns:
+                hispanic_latino_sum = df.groupby('Hispanic Latino')['Amount'].sum().reset_index()
+                hispanic_latino_sum = hispanic_latino_sum.sort_values(by="Amount", ascending=False)
+
+                # Display the summed data
+                st.subheader("Total Amount by Hispanic Latino")
+                st.dataframe(hispanic_latino_sum)
 else:
     st.write("Failed to load and clean data.")
