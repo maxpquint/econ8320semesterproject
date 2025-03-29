@@ -157,6 +157,19 @@ if df is not None:
         st.write("Data cleaned successfully!")
         st.dataframe(df.head())  # Show the first few rows of the cleaned data
 
+        # Button to download cleaned data
+        @st.cache_data
+        def convert_df(df):
+            return df.to_csv(index=False).encode('utf-8')
+
+        csv = convert_df(df)
+        st.download_button(
+            label="Download Cleaned Data",
+            data=csv,
+            file_name="cleaned_data.csv",
+            mime="text/csv",
+        )
+
     # Demographic Breakout Page
     elif page == "Demographic Breakout":
         st.subheader("Demographic Data Breakdown")
@@ -237,8 +250,6 @@ if df is not None:
         else:
             st.write("Columns for 'Grant Req Date' and/or 'Payment Submitted?' are missing.")
 
-else:
-    st.write("Error loading the dataset.")
 
 
 
