@@ -17,8 +17,11 @@ def import_excel_from_github(sheet_name=0):
         df = pd.read_excel(BytesIO(response.content), sheet_name=sheet_name)
         st.write("Excel file successfully loaded into DataFrame.")
 
-        # Display the raw column names to verify
-        st.write("Raw column names:")
+        # Clean column names by stripping any leading or trailing spaces
+        df.columns = df.columns.str.strip()
+
+        # Display the cleaned column names to verify
+        st.write("Cleaned column names:")
         st.write(df.columns)  # Display the actual column names from the raw data
 
         # Step 1: Replace all occurrences of "Missing" (case insensitive) with NaN across the entire DataFrame
@@ -30,6 +33,21 @@ def import_excel_from_github(sheet_name=0):
             'Payment Submitted': 'Payment Submitted?', 
             'Application Signed': 'Application Signed?'
         }, inplace=True)
+
+        # Check if the 'Year' column exists, and if not, create it from 'Grant Req Date'
+        if 'Grant Req Date' in df.columns:
+            df['Grant Req Date'] = pd.to_datetime(df['Grant Req Date'], errors='coerce')
+            df['Year'] = df['Grant Req Date'].dt.year  # Create 'Year' column based on 'Grant Req Date'
+        
+        # If 'Year' is still missing, create it based on 'Payment Submitted?'
+        if 'Year' not in df.columns and 'Payment Submitted?' in df.columns:
+            df['Payment Submitted?'] = pd.to_datetime(df['Payment Submitted?'], errors='coerce')
+            df['Year'] = df['Payment Submitted?'].dt.year  # Create 'Year' column based on 'Payment Submitted?'
+        
+        # Check again if 'Year' was successfully created
+        if 'Year' not in df.columns:
+            st.error("Error: 'Year' column could not be created from the available date columns.")
+            return None
 
         # Step 3: Standardizing the 'Request Status' column to lowercase immediately after loading the data
         if 'Request Status' in df.columns:
@@ -169,50 +187,54 @@ if df is not None:
     elif page == "Demographic Breakout":
         st.subheader("Demographic Data Breakdown")
 
-        # Filter by Year (first filter)
-        year_filter = st.selectbox("Select Year", sorted(df['Year'].dropna().unique()))
+        # Check if 'Year' column exists
+        if 'Year' not in df.columns:
+            st.error("The 'Year' column is missing from the dataset.")
+        else:
+            # Filter by Year (first filter)
+            year_filter = st.selectbox("Select Year", sorted(df['Year'].dropna().unique()))
 
-        # Filter data by selected year
-        df_year_filtered = df[df['Year'] == year_filter]
+            # Filter data by selected year
+            df_year_filtered = df[df['Year'] == year_filter]
 
-        # Display available filters for demographics
-        state_filter = st.multiselect("Select State", options=df_year_filtered['Pt State'].dropna().unique(), default=df_year_filtered['Pt State'].dropna().unique())
-        gender_filter = st.multiselect("Select Gender", options=df_year_filtered['Gender'].dropna().unique(), default=df_year_filtered['Gender'].dropna().unique())
-        income_filter = st.multiselect("Select Income Level", options=df_year_filtered['Income Level'].dropna().unique(), default=df_year_filtered['Income Level'].dropna().unique())
-        insurance_filter = st.multiselect("Select Insurance Type", options=df_year_filtered['Insurance Type'].dropna().unique(), default=df_year_filtered['Insurance Type'].dropna().unique())
+            # Display available filters for demographics
+            state_filter = st.multiselect("Select State", options=df_year_filtered['Pt State'].dropna().unique(), default=df_year_filtered['Pt State'].dropna().unique())
+            gender_filter = st.multiselect("Select Gender", options=df_year_filtered['Gender'].dropna().unique(), default=df_year_filtered['Gender'].dropna().unique())
+            income_filter = st.multiselect("Select Income Level", options=df_year_filtered['Income Level'].dropna().unique(), default=df_year_filtered['Income Level'].dropna().unique())
+            insurance_filter = st.multiselect("Select Insurance Type", options=df_year_filtered['Insurance Type'].dropna().unique(), default=df_year_filtered['Insurance Type'].dropna().unique())
 
-        # Apply filters on the filtered year data
-        df_filtered = df_year_filtered[
-            df_year_filtered['Pt State'].isin(state_filter) &
-            df_year_filtered['Gender'].isin(gender_filter) &
-            df_year_filtered['Income Level'].isin(income_filter) &
-            df_year_filtered['Insurance Type'].isin(insurance_filter)
-        ]
+            # Apply filters on the filtered year data
+            df_filtered = df_year_filtered[
+                df_year_filtered['Pt State'].isin(state_filter) &
+                df_year_filtered['Gender'].isin(gender_filter) &
+                df_year_filtered['Income Level'].isin(income_filter) &
+                df_year_filtered['Insurance Type'].isin(insurance_filter)
+            ]
 
-        # Remove rows with NaN in the 'Amount' column before summing
-        df_filtered_cleaned = df_filtered.dropna(subset=['Amount'])
+            # Remove rows with NaN in the 'Amount' column before summing
+            df_filtered_cleaned = df_filtered.dropna(subset=['Amount'])
 
-        # Display sums for each demographic category
+            # Display sums for each demographic category
 
-        # State Sum
-        state_sum = df_filtered_cleaned.groupby('Pt State')['Amount'].sum().reset_index()
-        st.write("Total Amount by State:")
-        st.dataframe(state_sum)
+            # State Sum
+            state_sum = df_filtered_cleaned.groupby('Pt State')['Amount'].sum().reset_index()
+            st.write("Total Amount by State:")
+            st.dataframe(state_sum)
 
-        # Gender Sum
-        gender_sum = df_filtered_cleaned.groupby('Gender')['Amount'].sum().reset_index()
-        st.write("Total Amount by Gender:")
-        st.dataframe(gender_sum)
+            # Gender Sum
+            gender_sum = df_filtered_cleaned.groupby('Gender')['Amount'].sum().reset_index()
+            st.write("Total Amount by Gender:")
+            st.dataframe(gender_sum)
 
-        # Income Level Sum
-        income_sum = df_filtered_cleaned.groupby('Income Level')['Amount'].sum().reset_index()
-        st.write("Total Amount by Income Level:")
-        st.dataframe(income_sum)
+            # Income Level Sum
+            income_sum = df_filtered_cleaned.groupby('Income Level')['Amount'].sum().reset_index()
+            st.write("Total Amount by Income Level:")
+            st.dataframe(income_sum)
 
-        # Insurance Type Sum
-        insurance_sum = df_filtered_cleaned.groupby('Insurance Type')['Amount'].sum().reset_index()
-        st.write("Total Amount by Insurance Type:")
-        st.dataframe(insurance_sum)
+            # Insurance Type Sum
+            insurance_sum = df_filtered_cleaned.groupby('Insurance Type')['Amount'].sum().reset_index()
+            st.write("Total Amount by Insurance Type:")
+            st.dataframe(insurance_sum)
 
     elif page == "Grant Time Difference":
         st.subheader("Time Difference Between Grant Request Date and Payment Submitted")
@@ -226,7 +248,6 @@ if df is not None:
         # Display the time differences
         st.write("Time Difference (in days) between Grant Request Date and Payment Submitted?")
         st.dataframe(df_grant_time_filtered[['Grant Req Date', 'Payment Submitted?', 'Grant Time Difference (days)']])
-else:
-    st.write("Failed to load and clean data.")
+
 
 
