@@ -120,6 +120,17 @@ def import_excel_from_github(sheet_name=0):
         if 'Amount' in df.columns:
             df['Amount'] = pd.to_numeric(df['Amount'], errors='coerce')  # Coerce errors to NaN
 
+        # Step 16: Clean 'Marital Status' column
+        if 'Marital Status' in df.columns:
+            marital_options = ['single', 'married', 'widowed', 'divorced', 'domestic partnership', 'separated']
+            df['Marital Status'] = df['Marital Status'].astype(str).apply(lambda x: process.extractOne(x, marital_options)[0] if pd.notna(x) and x != 'nan' else x)
+
+        # Step 17: Clean 'Hispanic Latino' column
+        if 'Hispanic Latino' in df.columns:
+            df['Hispanic Latino'] = df['Hispanic Latino'].apply(
+                lambda x: 'Yes' if 'hispanic' in str(x).lower() else ('No' if 'non-hispanic' in str(x).lower() else np.nan)
+            )
+
         return df
     except Exception as e:
         st.error(f"Error loading Excel file: {e}")
@@ -148,28 +159,6 @@ if df is not None:
         st.write("Data cleaned successfully!")
         st.dataframe(df.head())  # Show the first few rows of the cleaned data
 
-        # Standardizing and filtering 'Request Status' to handle possible variations
-        if 'Request Status' in df.columns:
-            # Filter the DataFrame to show rows where 'Request Status' ends with 'pending', case insensitive
-            pending_df = df[df['Request Status'].str.endswith('pending', na=False)]  # Make case-insensitive check
-
-            # Display the rows where request status ends with 'pending' in the same way
-            st.subheader("Rows where 'Request Status' ends with 'Pending'")
-
-            if pending_df.empty:
-                st.write("No pending requests found.")
-            else:
-                # Add filter for 'Application Signed?' for the 'Pending' rows
-                application_signed_filter = st.selectbox(
-                    "Filter by 'Application Signed?'",
-                    ['All', 'Yes', 'No', 'N/A']
-                )
-
-                if application_signed_filter != 'All':
-                    pending_df = pending_df[pending_df['Application Signed?'] == application_signed_filter]
-
-                st.dataframe(pending_df)  # Display the filtered rows like the raw data
-
     # Demographic Breakout Page
     elif page == "Demographic Breakout":
         st.subheader("Demographic Data Breakdown")
@@ -195,6 +184,8 @@ if df is not None:
             all_genders = ['male', 'female', 'transgender', 'nonbinary', 'decline to answer', 'other']
             all_income_levels = [1, 2, 3, 4]  # Example: Adjust to your specific income levels
             all_insurance_types = ['medicare', 'medicaid', 'medicare & medicaid', 'uninsured', 'private', 'military', 'unknown']
+            all_marital_status = ['single', 'married', 'widowed', 'divorced', 'domestic partnership', 'separated']
+            all_hispanic_latino = ['Yes', 'No']
 
             # For 'State' summation - ensure all states are included
             st.write("Total Amount by State:")
@@ -219,6 +210,18 @@ if df is not None:
             insurance_sum = df_year_filtered.groupby('Insurance Type')['Amount'].sum(min_count=1).reset_index()
             insurance_sum = pd.DataFrame(all_insurance_types, columns=['Insurance Type']).merge(insurance_sum, on='Insurance Type', how='left')
             st.dataframe(insurance_sum)
+
+            # For 'Marital Status' summation - ensure all marital status options are included
+            st.write("Total Amount by Marital Status:")
+            marital_status_sum = df_year_filtered.groupby('Marital Status')['Amount'].sum(min_count=1).reset_index()
+            marital_status_sum = pd.DataFrame(all_marital_status, columns=['Marital Status']).merge(marital_status_sum, on='Marital Status', how='left')
+            st.dataframe(marital_status_sum)
+
+            # For 'Hispanic Latino' summation - ensure all options are included
+            st.write("Total Amount by Hispanic Latino:")
+            hispanic_latino_sum = df_year_filtered.groupby('Hispanic Latino')['Amount'].sum(min_count=1).reset_index()
+            hispanic_latino_sum = pd.DataFrame(all_hispanic_latino, columns=['Hispanic Latino']).merge(hispanic_latino_sum, on='Hispanic Latino', how='left')
+            st.dataframe(hispanic_latino_sum)
 
     # Grant Time Difference Page
     elif page == "Grant Time Difference":
