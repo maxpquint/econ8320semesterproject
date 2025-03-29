@@ -112,6 +112,10 @@ def import_excel_from_github(sheet_name=0):
         if 'Grant Req Date' in df.columns:
             df['Grant Req Date'] = pd.to_datetime(df['Grant Req Date'], errors='coerce')
 
+        # Step 15: Add 'Year' column from the 'Grant Req Date' column
+        if 'Grant Req Date' in df.columns:
+            df['Year'] = df['Grant Req Date'].dt.year
+
         return df
     except Exception as e:
         st.error(f"Error loading Excel file: {e}")
@@ -221,13 +225,18 @@ if df is not None:
         # Filter rows where 'Grant Req Date' and 'Payment Submitted?' are not NaT
         if 'Grant Req Date' in df.columns and 'Payment Submitted?' in df.columns:
             df_filtered = df.dropna(subset=['Grant Req Date', 'Payment Submitted?'])
-            df_filtered['Grant Time Difference (Days)'] = (df_filtered['Payment Submitted?'] - df_filtered['Grant Req Date']).dt.days
-            st.dataframe(df_filtered[['Pt State', 'Grant Req Date', 'Payment Submitted?', 'Grant Time Difference (Days)']])
 
+            # Calculate the time difference between the 'Grant Req Date' and 'Payment Submitted?'
+            df_filtered['Time Difference (Days)'] = (df_filtered['Payment Submitted?'] - df_filtered['Grant Req Date']).dt.days
+
+            # Display the filtered DataFrame with time difference
+            st.dataframe(df_filtered[['Grant Req Date', 'Payment Submitted?', 'Time Difference (Days)']])
         else:
-            st.error("Required columns ('Grant Req Date' and 'Payment Submitted?') are missing.")
+            st.write("Columns for 'Grant Req Date' and/or 'Payment Submitted?' are missing.")
+
 else:
-    st.error("Failed to load the data.")
+    st.write("Error loading the dataset.")
+
 
 
 
