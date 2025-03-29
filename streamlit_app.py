@@ -116,6 +116,10 @@ def import_excel_from_github(sheet_name=0):
         if 'Grant Req Date' in df.columns:
             df['Year'] = df['Grant Req Date'].dt.year
 
+        # Ensure 'Amount' column is numeric, coerce any errors into NaN
+        if 'Amount' in df.columns:
+            df['Amount'] = pd.to_numeric(df['Amount'], errors='coerce')  # Coerce errors to NaN
+
         return df
     except Exception as e:
         st.error(f"Error loading Excel file: {e}")
@@ -155,6 +159,15 @@ if df is not None:
             if pending_df.empty:
                 st.write("No pending requests found.")
             else:
+                # Add filter for 'Application Signed?' for the 'Pending' rows
+                application_signed_filter = st.selectbox(
+                    "Filter by 'Application Signed?'",
+                    ['All', 'Yes', 'No', 'N/A']
+                )
+
+                if application_signed_filter != 'All':
+                    pending_df = pending_df[pending_df['Application Signed?'] == application_signed_filter]
+
                 st.dataframe(pending_df)  # Display the filtered rows like the raw data
 
     # Demographic Breakout Page
@@ -168,13 +181,6 @@ if df is not None:
             # Clean the 'Year' column to ensure all values are consistent and of type 'string'
             df['Year'] = df['Year'].astype(str, errors='ignore')  # Ensure it's treated as a string
 
-            # Check if any non-numeric values exist in the 'Year' column
-            try:
-                # Try to convert 'Year' to integers for proper sorting
-                df['Year'] = pd.to_numeric(df['Year'], errors='coerce').astype('Int64', errors='ignore')
-            except Exception as e:
-                st.error(f"Error in 'Year' column conversion: {e}")
-            
             # Add Year filter for the page
             year_filter = st.selectbox("Select Year", sorted(df['Year'].dropna().unique()))
 
@@ -189,10 +195,6 @@ if df is not None:
             all_genders = ['male', 'female', 'transgender', 'nonbinary', 'decline to answer', 'other']
             all_income_levels = [1, 2, 3, 4]  # Example: Adjust to your specific income levels
             all_insurance_types = ['medicare', 'medicaid', 'medicare & medicaid', 'uninsured', 'private', 'military', 'unknown']
-
-            # Clean the 'Amount' column to ensure it is numeric (handle any string or NaN values)
-            if 'Amount' in df.columns:
-                df['Amount'] = pd.to_numeric(df['Amount'], errors='coerce')
 
             # For 'State' summation - ensure all states are included
             st.write("Total Amount by State:")
@@ -220,9 +222,9 @@ if df is not None:
 
     # Grant Time Difference Page
     elif page == "Grant Time Difference":
-        st.subheader("Grant Time Difference")
+        st.subheader("Grant Time Difference Analysis")
 
-        # Filter rows where 'Grant Req Date' and 'Payment Submitted?' are not NaT
+        # Filter rows that have both 'Grant Req Date' and 'Payment Submitted?'
         if 'Grant Req Date' in df.columns and 'Payment Submitted?' in df.columns:
             df_filtered = df.dropna(subset=['Grant Req Date', 'Payment Submitted?'])
 
@@ -236,6 +238,7 @@ if df is not None:
 
 else:
     st.write("Error loading the dataset.")
+
 
 
 
