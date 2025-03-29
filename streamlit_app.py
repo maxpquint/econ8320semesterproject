@@ -3,9 +3,9 @@ import requests
 from io import BytesIO
 from thefuzz import process
 import streamlit as st
-import io
 import numpy as np  # For NaN
 
+# Function to import the Excel file and clean data
 def import_excel_from_github(sheet_name=0):
     github_raw_url = "https://github.com/maxpquint/econ8320semesterproject/raw/main/UNO%20Service%20Learning%20Data%20Sheet%20De-Identified%20Version.xlsx"
     
@@ -121,16 +121,19 @@ def import_excel_from_github(sheet_name=0):
 # Streamlit interface
 st.title('UNO Service Learning Data Dashboard')
 
-# Sidebar navigation
-page = st.sidebar.selectbox("Select a Page", ["Home", "Demographic Breakout", "Grant Time Difference"])
+# Load the data globally so it's accessible across pages
+df = import_excel_from_github()
 
-# Home Page
-if page == "Home":
-    # Load the data
-    df = import_excel_from_github()
+# Ensure the DataFrame was successfully loaded
+if df is not None:
+    # Sidebar navigation
+    page = st.sidebar.selectbox("Select a Page", ["Home", "Demographic Breakout", "Grant Time Difference"])
 
-    # Display the updated column names in the DataFrame
-    if df is not None:
+    # Home Page
+    if page == "Home":
+        st.subheader("Welcome to the Home Page!")
+
+        # Display the updated column names in the DataFrame
         st.write("Updated Column names in the dataset:")
         st.write(df.columns)  # Display the column names in the Streamlit app
 
@@ -150,28 +153,8 @@ if page == "Home":
             else:
                 st.dataframe(pending_df)  # Display the filtered rows like the raw data
 
-    # Additional Filtering or Analysis options
-    st.subheader("Data Analysis")
-    st.write(f"Total number of rows in the dataset: {df.shape[0]}")
-
-    # Add functionality to download the cleaned data as a CSV
-    @st.cache_data
-    def convert_df(df):
-        # Cache the conversion to avoid re-running on every interaction
-        return df.to_csv(index=False)
-
-    csv = convert_df(df)
-
-    # Provide a download button for the CSV file
-    st.download_button(
-        label="Download Cleaned Data as CSV",
-        data=csv,
-        file_name='cleaned_data.csv',
-        mime='text/csv'
-    )
-else:
     # Demographic Breakout Page
-    if page == "Demographic Breakout":
+    elif page == "Demographic Breakout":
         st.subheader("Demographic Data Breakdown")
 
         # Ensure the 'Year' column is available for filtering
@@ -230,6 +213,22 @@ else:
             insurance_sum = df_year_filtered.groupby('Insurance Type')['Amount'].sum(min_count=1).reset_index()
             insurance_sum = pd.DataFrame(all_insurance_types, columns=['Insurance Type']).merge(insurance_sum, on='Insurance Type', how='left')
             st.dataframe(insurance_sum)
+
+    # Grant Time Difference Page
+    elif page == "Grant Time Difference":
+        st.subheader("Grant Time Difference")
+
+        # Filter rows where 'Grant Req Date' and 'Payment Submitted?' are not NaT
+        if 'Grant Req Date' in df.columns and 'Payment Submitted?' in df.columns:
+            df_filtered = df.dropna(subset=['Grant Req Date', 'Payment Submitted?'])
+            df_filtered['Grant Time Difference (Days)'] = (df_filtered['Payment Submitted?'] - df_filtered['Grant Req Date']).dt.days
+            st.dataframe(df_filtered[['Pt State', 'Grant Req Date', 'Payment Submitted?', 'Grant Time Difference (Days)']])
+
+        else:
+            st.error("Required columns ('Grant Req Date' and 'Payment Submitted?') are missing.")
+else:
+    st.error("Failed to load the data.")
+
 
 
 
