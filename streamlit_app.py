@@ -16,10 +16,6 @@ def import_excel_from_github(sheet_name=0):
         df = pd.read_excel(BytesIO(response.content), sheet_name=sheet_name)
         st.write("Excel file successfully loaded into DataFrame.")
 
-        # Display the raw column names to verify
-        st.write("Raw column names:")
-        st.write(df.columns)  # Display the actual column names from the raw data
-
         # Step 1: Replace all occurrences of "Missing" (case insensitive) with NaN across the entire DataFrame
         df.replace(to_replace=r'(?i)^missing$', value=np.nan, regex=True, inplace=True)
 
@@ -125,11 +121,13 @@ def import_excel_from_github(sheet_name=0):
             marital_options = ['single', 'married', 'widowed', 'divorced', 'domestic partnership', 'separated']
             df['Marital Status'] = df['Marital Status'].astype(str).apply(lambda x: process.extractOne(x, marital_options)[0] if pd.notna(x) and x != 'nan' else x)
 
-        # Step 17: Clean 'Hispanic Latino' column
-        if 'Hispanic Latino' in df.columns:
-            df['Hispanic Latino'] = df['Hispanic Latino'].apply(
+        # Step 17: Clean 'Hispanic/Latino' column (correct column name used here)
+        if 'Hispanic/Latino' in df.columns:
+            df['Hispanic/Latino'] = df['Hispanic/Latino'].apply(
                 lambda x: 'Yes' if 'hispanic' in str(x).lower() else ('No' if 'non-hispanic' in str(x).lower() else np.nan)
             )
+        else:
+            st.write("Error: 'Hispanic/Latino' column not found!")
 
         return df
     except Exception as e:
@@ -219,8 +217,8 @@ if df is not None:
 
             # For 'Hispanic Latino' summation - ensure all options are included
             st.write("Total Amount by Hispanic Latino:")
-            hispanic_latino_sum = df_year_filtered.groupby('Hispanic Latino')['Amount'].sum(min_count=1).reset_index()
-            hispanic_latino_sum = pd.DataFrame(all_hispanic_latino, columns=['Hispanic Latino']).merge(hispanic_latino_sum, on='Hispanic Latino', how='left')
+            hispanic_latino_sum = df_year_filtered.groupby('Hispanic/Latino')['Amount'].sum(min_count=1).reset_index()
+            hispanic_latino_sum = pd.DataFrame(all_hispanic_latino, columns=['Hispanic/Latino']).merge(hispanic_latino_sum, on='Hispanic/Latino', how='left')
             st.dataframe(hispanic_latino_sum)
 
     # Grant Time Difference Page
@@ -241,6 +239,7 @@ if df is not None:
 
 else:
     st.write("Error loading the dataset.")
+
 
 
 
