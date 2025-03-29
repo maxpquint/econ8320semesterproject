@@ -124,17 +124,16 @@ def import_excel_from_github(sheet_name=0):
         # Step 17: Clean 'Hispanic/Latino' column
         if 'Hispanic/Latino' in df.columns:
             df['Hispanic/Latino'] = df['Hispanic/Latino'].apply(
-                lambda x: 'Yes' if 'hispanic' in str(x).lower() else 
-                          ('No' if 'non-hispanic' in str(x).lower() or 'non latino' in str(x).lower() else np.nan)
+                lambda x: 'Yes' if 'hispanic' in str(x).lower() or 'latino' in str(x).lower() 
+                else ('No' if 'non-hispanic' in str(x).lower() or 'non latino' in str(x).lower() 
+                      else np.nan)
             )
-        else:
-            st.write("Error: 'Hispanic/Latino' column not found!")
 
         return df
-    except Exception as e:
-        st.error(f"Error loading Excel file: {e}")
-        return None
 
+    except requests.exceptions.RequestException as e:
+        st.write(f"Error: {e}")
+        return pd.DataFrame()  # Return an empty DataFrame on error
 
 # Streamlit interface
 st.title('UNO Service Learning Data Dashboard')
