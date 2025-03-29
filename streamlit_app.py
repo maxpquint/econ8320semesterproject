@@ -1,12 +1,10 @@
 #semester project
-
 import pandas as pd
 import requests
 from io import BytesIO
-from thefuzz import process
 import streamlit as st
-import io
-import numpy as np  # For NaN
+import numpy as np
+from thefuzz import process
 
 def import_excel_from_github(sheet_name=0):
     github_raw_url = "https://github.com/maxpquint/econ8320semesterproject/raw/main/UNO%20Service%20Learning%20Data%20Sheet%20De-Identified%20Version.xlsx"
@@ -16,7 +14,6 @@ def import_excel_from_github(sheet_name=0):
         response = requests.get(github_raw_url)
         response.raise_for_status()  # Raise an error for bad responses (4xx and 5xx)
         df = pd.read_excel(BytesIO(response.content), sheet_name=sheet_name)
-        st.write("Excel file successfully loaded into DataFrame.")
 
         # Step 1: Replace all occurrences of "Missing" (case insensitive) with NaN across the entire DataFrame
         df.replace(to_replace=r'(?i)^missing$', value=np.nan, regex=True, inplace=True)
@@ -70,18 +67,12 @@ def import_excel_from_github(sheet_name=0):
                 (4 if x > 100000 else pd.NA)))
             )
 
-        # Step 9: Add Age Grouping column based on the individual's age
-        if 'Age' in df.columns:
-            df['Age Group'] = df['Age'].apply(lambda x: 'Children/Adolescents' if x < 15 else 
-                                              ('Working-Age Adults' if 15 <= x <= 64 else 'The Elderly') 
-                                              if pd.notna(x) else pd.NA)
-
-        # Step 10: Clean 'Gender' column using fuzzy matching, but skip NaN values
+        # Step 9: Clean 'Gender' column using fuzzy matching, but skip NaN values
         if 'Gender' in df.columns:
             gender_options = ['male', 'female', 'transgender', 'nonbinary', 'decline to answer', 'other']
             df['Gender'] = df['Gender'].astype(str).apply(lambda x: process.extractOne(x, gender_options)[0] if pd.notna(x) and x != 'nan' else x)
 
-        # Step 11: Clean 'Race' column using fuzzy matching, but skip NaN values
+        # Step 10: Clean 'Race' column using fuzzy matching, but skip NaN values
         if 'Race' in df.columns:
             race_options = [
                 'American Indian or Alaska Native', 
@@ -96,7 +87,7 @@ def import_excel_from_github(sheet_name=0):
             ]
             df['Race'] = df['Race'].astype(str).apply(lambda x: process.extractOne(x, race_options)[0] if pd.notna(x) and x != 'nan' else x)
 
-        # Step 12: Clean 'Insurance Type' column using fuzzy matching, but skip NaN values
+        # Step 11: Clean 'Insurance Type' column using fuzzy matching, but skip NaN values
         if 'Insurance Type' in df.columns:
             insurance_options = [
                 'medicare', 'medicaid', 'medicare & medicaid', 'uninsured', 
@@ -104,31 +95,17 @@ def import_excel_from_github(sheet_name=0):
             ]
             df['Insurance Type'] = df['Insurance Type'].astype(str).apply(lambda x: process.extractOne(x, insurance_options)[0] if pd.notna(x) and x != 'nan' else x)
 
-        # Step 13: Clean 'Request Status' column again (just to be sure it's lowercased)
+        # Step 12: Clean 'Request Status' column again (just to be sure it's lowercased)
         if 'Request Status' in df.columns:
             df['Request Status'] = df['Request Status'].str.lower().str.strip()  # Ensure it's lowercased
 
-        # Step 14: Clean 'Payment Submitted?' column (convert date strings to NaT or keep them as NaT if empty)
+        # Step 13: Clean 'Payment Submitted?' column (convert date strings to NaT or keep them as NaT if empty)
         if 'Payment Submitted?' in df.columns:
             df['Payment Submitted?'] = pd.to_datetime(df['Payment Submitted?'], errors='coerce')
 
-        # Step 15: Clean 'Grant Req Date' column (convert to datetime)
+        # Step 14: Clean 'Grant Req Date' column (convert to datetime)
         if 'Grant Req Date' in df.columns:
             df['Grant Req Date'] = pd.to_datetime(df['Grant Req Date'], errors='coerce')
-
-        # Ensure 'Amount' is numeric and handle any non-numeric values by converting to NaN
-        if 'Amount' in df.columns:
-            df['Amount'] = pd.to_numeric(df['Amount'], errors='coerce')
-
-        # Clean 'Marital Status' column
-        if 'Marital Status' in df.columns:
-            marital_status_options = ['single', 'married', 'widowed', 'divorced', 'domestic partnership', 'separated']
-            df['Marital Status'] = df['Marital Status'].astype(str).apply(lambda x: process.extractOne(x.lower(), marital_status_options)[0] if pd.notna(x) and x != 'nan' else x)
-
-        # Clean 'Hispanic Latino' column
-        if 'Hispanic Latino' in df.columns:
-            hispanic_latino_options = ['hispanic-latino', 'non-hispanic latino']
-            df['Hispanic Latino'] = df['Hispanic Latino'].astype(str).apply(lambda x: 'yes' if 'hispanic' in x.lower() else 'no' if 'non-hispanic' in x.lower() else x)
 
         return df
     except Exception as e:
@@ -139,80 +116,86 @@ def import_excel_from_github(sheet_name=0):
 # Streamlit interface
 st.title('UNO Service Learning Data Dashboard')
 
+# Create a navigation sidebar
+page = st.sidebar.selectbox("Select a page", ["Home", "Demographic Breakout", "Grant Payment Time Difference"])
+
 # Load the data
 df = import_excel_from_github()
 
-# Display the updated column names in the DataFrame
-if df is not None:
-    st.write("Updated Column names in the dataset:")
-    st.write(df.columns)  # Display the column names in the Streamlit app
+# Home page or other pages
+if page == "Home":
+    st.write("Welcome to the Dashboard!")
 
-    st.write("Data cleaned successfully!")
-    st.dataframe(df.head())  # Show the first few rows of the cleaned data
+elif page == "Demographic Breakout":
+    # Year filter for the Demographic Breakout page
+    year_filter = st.sidebar.selectbox("Select Year", options=df['Year'].unique())
+    filtered_df = df[df['Year'] == year_filter]
 
-    # Add functionality to filter by Application Signed?
-    application_signed_options = ['yes', 'no', 'n/a']
-    application_signed_filter = st.selectbox(
-        "Filter by 'Application Signed?'",
-        options=application_signed_options
-    )
-    
-    # Filter the data based on the selection
-    filtered_df = df[df['Application Signed?'] == application_signed_filter]
-
-    st.write(f"Filtered data based on 'Application Signed?' = {application_signed_filter}:")
-    st.dataframe(filtered_df)
-
-    # Demographic Breakout page (Summation by State, Gender, Income Level, Insurance Type, Marital Status, and Hispanic Latino)
-    st.sidebar.subheader("Demographic Breakout")
-    
-    # Sum the "Amount" by "State"
-    if "Pt State" in df.columns:
-        state_sum = df.groupby('Pt State')['Amount'].sum().reset_index()
+    # State sum
+    if "Pt State" in filtered_df.columns:
+        state_sum = filtered_df.groupby('Pt State')['Amount'].sum().reset_index()
         state_sum = state_sum.sort_values(by="Amount", ascending=False)
 
-        st.subheader("Total Amount by State")
+        st.subheader(f"Total Amount by State for {year_filter}")
         st.dataframe(state_sum)
 
-    # Sum the "Amount" by "Gender"
-    if "Gender" in df.columns:
-        gender_sum = df.groupby('Gender')['Amount'].sum().reset_index()
+    # Gender sum
+    if "Gender" in filtered_df.columns:
+        gender_sum = filtered_df.groupby('Gender')['Amount'].sum().reset_index()
         gender_sum = gender_sum.sort_values(by="Amount", ascending=False)
 
-        st.subheader("Total Amount by Gender")
+        st.subheader(f"Total Amount by Gender for {year_filter}")
         st.dataframe(gender_sum)
 
-    # Sum the "Amount" by "Income Level"
-    if "Income Level" in df.columns:
-        income_level_sum = df.groupby('Income Level')['Amount'].sum().reset_index()
+    # Income Level sum
+    if "Income Level" in filtered_df.columns:
+        income_level_sum = filtered_df.groupby('Income Level')['Amount'].sum().reset_index()
         income_level_sum = income_level_sum.sort_values(by="Amount", ascending=False)
 
-        st.subheader("Total Amount by Income Level")
+        st.subheader(f"Total Amount by Income Level for {year_filter}")
         st.dataframe(income_level_sum)
 
-    # Sum the "Amount" by "Insurance Type"
-    if "Insurance Type" in df.columns:
-        insurance_sum = df.groupby('Insurance Type')['Amount'].sum().reset_index()
+    # Insurance Type sum
+    if "Insurance Type" in filtered_df.columns:
+        insurance_sum = filtered_df.groupby('Insurance Type')['Amount'].sum().reset_index()
         insurance_sum = insurance_sum.sort_values(by="Amount", ascending=False)
 
-        st.subheader("Total Amount by Insurance Type")
+        st.subheader(f"Total Amount by Insurance Type for {year_filter}")
         st.dataframe(insurance_sum)
 
-    # Sum the "Amount" by "Marital Status"
-    if "Marital Status" in df.columns:
-        marital_status_sum = df.groupby('Marital Status')['Amount'].sum().reset_index()
+    # Marital Status sum
+    if "Marital Status" in filtered_df.columns:
+        marital_status_sum = filtered_df.groupby('Marital Status')['Amount'].sum().reset_index()
         marital_status_sum = marital_status_sum.sort_values(by="Amount", ascending=False)
 
-        st.subheader("Total Amount by Marital Status")
+        st.subheader(f"Total Amount by Marital Status for {year_filter}")
         st.dataframe(marital_status_sum)
 
-    # Sum the "Amount" by "Hispanic Latino"
-    if "Hispanic Latino" in df.columns:
-        hispanic_latino_sum = df.groupby('Hispanic Latino')['Amount'].sum().reset_index()
+    # Hispanic Latino sum
+    if "Hispanic Latino" in filtered_df.columns:
+        hispanic_latino_sum = filtered_df.groupby('Hispanic Latino')['Amount'].sum().reset_index()
         hispanic_latino_sum = hispanic_latino_sum.sort_values(by="Amount", ascending=False)
 
-        st.subheader("Total Amount by Hispanic Latino")
+        st.subheader(f"Total Amount by Hispanic Latino for {year_filter}")
         st.dataframe(hispanic_latino_sum)
 
+elif page == "Grant Payment Time Difference":
+    # Display the time difference between "Grant Req Date" and "Payment Submitted?"
+    if df is not None:
+        st.subheader("Grant Payment Time Difference")
+
+        # Ensure that both columns are datetime types (if they're not already)
+        if 'Grant Req Date' in df.columns and 'Payment Submitted?' in df.columns:
+            # Calculate the difference in days (rounding to the nearest whole number)
+            df['Time Difference (Days)'] = (df['Payment Submitted?'] - df['Grant Req Date']).dt.days
+
+            # Display the result
+            st.write(f"Time difference (in days) between 'Grant Req Date' and 'Payment Submitted?' calculated for each row.")
+            
+            # Show the table with the time difference
+            st.dataframe(df[['Grant Req Date', 'Payment Submitted?', 'Time Difference (Days)']].dropna(subset=['Time Difference (Days)']))
+        else:
+            st.write("Columns 'Grant Req Date' or 'Payment Submitted?' are missing or not formatted correctly.")
 else:
-    st.write("Failed to load and clean data.")
+    st.write("Select a valid page.")
+
