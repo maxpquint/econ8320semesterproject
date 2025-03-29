@@ -16,6 +16,10 @@ def import_excel_from_github(sheet_name=0):
         df = pd.read_excel(BytesIO(response.content), sheet_name=sheet_name)
         st.write("Excel file successfully loaded into DataFrame.")
 
+        # Display the raw column names to verify
+        st.write("Raw column names:")
+        st.write(df.columns)  # Display the actual column names from the raw data
+
         # Step 1: Replace all occurrences of "Missing" (case insensitive) with NaN across the entire DataFrame
         df.replace(to_replace=r'(?i)^missing$', value=np.nan, regex=True, inplace=True)
 
@@ -108,10 +112,6 @@ def import_excel_from_github(sheet_name=0):
         if 'Grant Req Date' in df.columns:
             df['Grant Req Date'] = pd.to_datetime(df['Grant Req Date'], errors='coerce')
 
-        # Add a 'Year' column from 'Grant Req Date' to allow for year-based filtering
-        if 'Grant Req Date' in df.columns:
-            df['Year'] = df['Grant Req Date'].dt.year
-
         return df
     except Exception as e:
         st.error(f"Error loading Excel file: {e}")
@@ -121,29 +121,34 @@ def import_excel_from_github(sheet_name=0):
 # Streamlit interface
 st.title('UNO Service Learning Data Dashboard')
 
-# Load the data
-df = import_excel_from_github()
+# Sidebar navigation
+page = st.sidebar.selectbox("Select a Page", ["Home", "Demographic Breakout", "Grant Time Difference"])
 
-# Display the updated column names in the DataFrame
-if df is not None:
-    st.write("Updated Column names in the dataset:")
-    st.write(df.columns)  # Display the column names in the Streamlit app
+# Home Page
+if page == "Home":
+    # Load the data
+    df = import_excel_from_github()
 
-    st.write("Data cleaned successfully!")
-    st.dataframe(df.head())  # Show the first few rows of the cleaned data
+    # Display the updated column names in the DataFrame
+    if df is not None:
+        st.write("Updated Column names in the dataset:")
+        st.write(df.columns)  # Display the column names in the Streamlit app
 
-    # Standardizing and filtering 'Request Status' to handle possible variations
-    if 'Request Status' in df.columns:
-        # Filter the DataFrame to show rows where 'Request Status' ends with 'pending', case insensitive
-        pending_df = df[df['Request Status'].str.endswith('pending', na=False)]  # Make case-insensitive check
-        
-        # Display the rows where request status ends with 'pending' in the same way
-        st.subheader("Rows where 'Request Status' ends with 'Pending'")
+        st.write("Data cleaned successfully!")
+        st.dataframe(df.head())  # Show the first few rows of the cleaned data
 
-        if pending_df.empty:
-            st.write("No pending requests found.")
-        else:
-            st.dataframe(pending_df)  # Display the filtered rows like the raw data
+        # Standardizing and filtering 'Request Status' to handle possible variations
+        if 'Request Status' in df.columns:
+            # Filter the DataFrame to show rows where 'Request Status' ends with 'pending', case insensitive
+            pending_df = df[df['Request Status'].str.endswith('pending', na=False)]  # Make case-insensitive check
+
+            # Display the rows where request status ends with 'pending' in the same way
+            st.subheader("Rows where 'Request Status' ends with 'Pending'")
+
+            if pending_df.empty:
+                st.write("No pending requests found.")
+            else:
+                st.dataframe(pending_df)  # Display the filtered rows like the raw data
 
     # Additional Filtering or Analysis options
     st.subheader("Data Analysis")
@@ -165,88 +170,66 @@ if df is not None:
         mime='text/csv'
     )
 else:
-    st.write("Failed to load and clean data.")
+    # Demographic Breakout Page
+    if page == "Demographic Breakout":
+        st.subheader("Demographic Data Breakdown")
 
-# --- Add the pages here ---
-page = st.sidebar.selectbox("Select a page", ["Home", "Demographic Breakout", "Grant Time Difference"])
+        # Ensure the 'Year' column is available for filtering
+        if 'Year' not in df.columns:
+            st.error("The 'Year' column is missing from the dataset.")
+        else:
+            # Clean the 'Year' column to ensure all values are consistent and of type 'string'
+            df['Year'] = df['Year'].astype(str, errors='ignore')  # Ensure it's treated as a string
 
-if page == "Demographic Breakout":
-    st.subheader("Demographic Data Breakdown")
+            # Check if any non-numeric values exist in the 'Year' column
+            try:
+                # Try to convert 'Year' to integers for proper sorting
+                df['Year'] = pd.to_numeric(df['Year'], errors='coerce').astype('Int64', errors='ignore')
+            except Exception as e:
+                st.error(f"Error in 'Year' column conversion: {e}")
+            
+            # Add Year filter for the page
+            year_filter = st.selectbox("Select Year", sorted(df['Year'].dropna().unique()))
 
-    # Ensure the 'Year' column is available for filtering
-    if 'Year' not in df.columns:
-        st.error("The 'Year' column is missing from the dataset.")
-    else:
-        # Clean the 'Year' column to ensure all values are consistent and of type 'string'
-        df['Year'] = df['Year'].astype(str, errors='ignore')  # Ensure it's treated as a string
+            # Filter data by the selected year
+            df_year_filtered = df[df['Year'] == year_filter]
 
-        # Check if any non-numeric values exist in the 'Year' column
-        try:
-            # Try to convert 'Year' to integers for proper sorting
-            df['Year'] = pd.to_numeric(df['Year'], errors='coerce').astype('Int64', errors='ignore')
-        except Exception as e:
-            st.error(f"Error in 'Year' column conversion: {e}")
-        
-        # Add Year filter for the page
-        year_filter = st.selectbox("Select Year", sorted(df['Year'].dropna().unique()))
+            # Reference lists for all categories
+            all_states = [
+                'NE', 'IA', 'KS', 'MO', 'SD', 'WY', 'CO', 'MN'
+            ]
 
-        # Filter data by the selected year
-        df_year_filtered = df[df['Year'] == year_filter]
+            all_genders = ['male', 'female', 'transgender', 'nonbinary', 'decline to answer', 'other']
+            all_income_levels = [1, 2, 3, 4]  # Example: Adjust to your specific income levels
+            all_insurance_types = ['medicare', 'medicaid', 'medicare & medicaid', 'uninsured', 'private', 'military', 'unknown']
 
-        # Reference lists for all categories
-        all_states = [
-            'NE', 'IA', 'KS', 'MO', 'SD', 'WY', 'CO', 'MN'
-        ]
+            # Clean the 'Amount' column to ensure it is numeric (handle any string or NaN values)
+            if 'Amount' in df.columns:
+                df['Amount'] = pd.to_numeric(df['Amount'], errors='coerce')
 
-        all_genders = ['male', 'female', 'transgender', 'nonbinary', 'decline to answer', 'other']
-        all_income_levels = [1, 2, 3, 4]  # Example: Adjust to your specific income levels
-        all_insurance_types = ['medicare', 'medicaid', 'medicare & medicaid', 'uninsured', 'private', 'military', 'unknown']
+            # For 'State' summation - ensure all states are included
+            st.write("Total Amount by State:")
+            state_sum = df_year_filtered.groupby('Pt State')['Amount'].sum(min_count=1).reset_index()
+            state_sum = pd.DataFrame(all_states, columns=['Pt State']).merge(state_sum, on='Pt State', how='left')
+            st.dataframe(state_sum)
 
-        # For 'State' summation - ensure all states are included
-        st.write("Total Amount by State:")
-        state_sum = df_year_filtered.groupby('Pt State')['Amount'].sum(min_count=1).reset_index()
-        state_sum = pd.DataFrame(all_states, columns=['Pt State']).merge(state_sum, on='Pt State', how='left')
-        st.dataframe(state_sum)
+            # For 'Gender' summation - ensure all genders are included
+            st.write("Total Amount by Gender:")
+            gender_sum = df_year_filtered.groupby('Gender')['Amount'].sum(min_count=1).reset_index()
+            gender_sum = pd.DataFrame(all_genders, columns=['Gender']).merge(gender_sum, on='Gender', how='left')
+            st.dataframe(gender_sum)
 
-        # For 'Gender' summation - ensure all genders are included
-        st.write("Total Amount by Gender:")
-        gender_sum = df_year_filtered.groupby('Gender')['Amount'].sum(min_count=1).reset_index()
-        gender_sum = pd.DataFrame(all_genders, columns=['Gender']).merge(gender_sum, on='Gender', how='left')
-        st.dataframe(gender_sum)
+            # For 'Income Level' summation - ensure all income levels are included
+            st.write("Total Amount by Income Level:")
+            income_sum = df_year_filtered.groupby('Income Level')['Amount'].sum(min_count=1).reset_index()
+            income_sum = pd.DataFrame(all_income_levels, columns=['Income Level']).merge(income_sum, on='Income Level', how='left')
+            st.dataframe(income_sum)
 
-        # For 'Income Level' summation - ensure all income levels are included
-        st.write("Total Amount by Income Level:")
-        income_sum = df_year_filtered.groupby('Income Level')['Amount'].sum(min_count=1).reset_index()
-        income_sum = pd.DataFrame(all_income_levels, columns=['Income Level']).merge(income_sum, on='Income Level', how='left')
-        st.dataframe(income_sum)
-
-        # For 'Insurance Type' summation - ensure all insurance types are included
-        st.write("Total Amount by Insurance Type:")
-        insurance_sum = df_year_filtered.groupby('Insurance Type')['Amount'].sum(min_count=1).reset_index()
-        insurance_sum = pd.DataFrame(all_insurance_types, columns=['Insurance Type']).merge(insurance_sum, on='Insurance Type', how='left')
-        st.dataframe(insurance_sum)
-
-# --- Grant Time Difference ---
-elif page == "Grant Time Difference":
-    st.subheader("Grant Time Difference (Days)")
-    
-    # Filter the rows with both Grant Req Date and Payment Submitted
-    df_filtered = df.dropna(subset=['Grant Req Date', 'Payment Submitted?'])
-    
-    # Calculate the time difference
-    df_filtered['Time Difference (Days)'] = (df_filtered['Payment Submitted?'] - df_filtered['Grant Req Date']).dt.days
-
-    # Display the results
-    st.write(df_filtered[['Grant Req Date', 'Payment Submitted?', 'Time Difference (Days)']])
-
-    # Optional: Allow users to download this information
-    @st.cache_data
-    def convert_df(df):
-        return df.to_csv(index=False)
-
-    csv = convert_df(df_filtered)
-    st.download_button("Download Time Difference Data", data=csv, file_name="time_difference.csv", mime="text/csv")
-
+            # For 'Insurance Type' summation - ensure all insurance types are included
+            st.write("Total Amount by Insurance Type:")
+            insurance_sum = df_year_filtered.groupby('Insurance Type')['Amount'].sum(min_count=1).reset_index()
+            insurance_sum = pd.DataFrame(all_insurance_types, columns=['Insurance Type']).merge(insurance_sum, on='Insurance Type', how='left')
+            st.dataframe(insurance_sum)
 
 
 
