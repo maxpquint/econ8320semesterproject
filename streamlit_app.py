@@ -18,10 +18,6 @@ def import_excel_from_github(sheet_name=0):
         df = pd.read_excel(BytesIO(response.content), sheet_name=sheet_name)
         st.write("Excel file successfully loaded into DataFrame.")
 
-        # Display the raw column names to verify
-        st.write("Raw column names:")
-        st.write(df.columns)  # Display the actual column names from the raw data
-
         # Step 1: Replace all occurrences of "Missing" (case insensitive) with NaN across the entire DataFrame
         df.replace(to_replace=r'(?i)^missing$', value=np.nan, regex=True, inplace=True)
 
@@ -134,16 +130,22 @@ if df is not None:
     st.write("Data cleaned successfully!")
     st.dataframe(df.head())  # Show the first few rows of the cleaned data
 
-    # Standardizing and filtering 'Request Status' to handle possible variations
+    # Filter and display pending applications
     if 'Request Status' in df.columns:
         # Filter the DataFrame to show rows where 'Request Status' ends with 'pending', case insensitive
         pending_df = df[df['Request Status'].str.endswith('pending', na=False)]  # Make case-insensitive check
-        
-        # Display the rows where request status ends with 'pending' in the same way
-        st.subheader("Rows where 'Request Status' ends with 'Pending'")
 
+        # Filter options for "Application Signed?"
+        st.subheader("Filter Pending Applications by 'Application Signed?'")
+        signed_filter = st.selectbox("Filter by Application Signed", options=["All", "Yes", "No", "N/A"])
+        
+        if signed_filter != "All":
+            pending_df = pending_df[pending_df['Application Signed?'] == signed_filter]
+        
+        # Display the filtered pending applications
+        st.subheader("Filtered Pending Applications")
         if pending_df.empty:
-            st.write("No pending requests found.")
+            st.write("No pending requests found with the selected filter.")
         else:
             st.dataframe(pending_df)  # Display the filtered rows like the raw data
 
