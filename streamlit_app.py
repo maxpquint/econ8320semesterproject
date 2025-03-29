@@ -121,10 +121,11 @@ def import_excel_from_github(sheet_name=0):
             marital_options = ['single', 'married', 'widowed', 'divorced', 'domestic partnership', 'separated']
             df['Marital Status'] = df['Marital Status'].astype(str).apply(lambda x: process.extractOne(x, marital_options)[0] if pd.notna(x) and x != 'nan' else x)
 
-        # Step 17: Clean 'Hispanic/Latino' column (correct column name used here)
+        # Step 17: Clean 'Hispanic/Latino' column
         if 'Hispanic/Latino' in df.columns:
             df['Hispanic/Latino'] = df['Hispanic/Latino'].apply(
-                lambda x: 'Yes' if 'hispanic' in str(x).lower() else ('No' if 'non-hispanic' in str(x).lower() else np.nan)
+                lambda x: 'Yes' if 'hispanic' in str(x).lower() else 
+                          ('No' if 'non-hispanic' in str(x).lower() or 'non latino' in str(x).lower() else np.nan)
             )
         else:
             st.write("Error: 'Hispanic/Latino' column not found!")
@@ -166,74 +167,63 @@ if df is not None:
         st.download_button(
             label="Download Cleaned Data",
             data=csv,
-            file_name="cleaned_data.csv",
-            mime="text/csv",
+            file_name='cleaned_data.csv',
+            mime='text/csv'
         )
-
+    
     # Demographic Breakout Page
     elif page == "Demographic Breakout":
-        st.subheader("Demographic Data Breakdown")
+        st.subheader("Demographic Breakout Analysis")
 
-        # Ensure the 'Year' column is available for filtering
-        if 'Year' not in df.columns:
-            st.error("The 'Year' column is missing from the dataset.")
-        else:
-            # Clean the 'Year' column to ensure all values are consistent and of type 'string'
-            df['Year'] = df['Year'].astype(str, errors='ignore')  # Ensure it's treated as a string
+        # Filter by Year
+        year = st.selectbox("Select Year", df['Year'].unique())
 
-            # Add Year filter for the page
-            year_filter = st.selectbox("Select Year", sorted(df['Year'].dropna().unique()))
+        df_year_filtered = df[df['Year'] == year]  # Filter the DataFrame by selected year
 
-            # Filter data by the selected year
-            df_year_filtered = df[df['Year'] == year_filter]
+        # Display sums for state, gender, income level, etc., ensuring all values are shown
+        all_states = df['Pt State'].unique().tolist()
+        all_genders = df['Gender'].unique().tolist()
+        all_income_levels = df['Income Level'].unique().tolist()
+        all_insurance_types = df['Insurance Type'].unique().tolist()
+        all_marital_status = ['single', 'married', 'widowed', 'divorced', 'domestic partnership', 'separated']
+        all_hispanic_latino = ['Yes', 'No']
 
-            # Reference lists for all categories
-            all_states = [
-                'NE', 'IA', 'KS', 'MO', 'SD', 'WY', 'CO', 'MN'
-            ]
+        # For 'State' summation - ensure all states are included
+        st.write("Total Amount by State:")
+        state_sum = df_year_filtered.groupby('Pt State')['Amount'].sum(min_count=1).reset_index()
+        state_sum = pd.DataFrame(all_states, columns=['Pt State']).merge(state_sum, on='Pt State', how='left')
+        st.dataframe(state_sum)
 
-            all_genders = ['male', 'female', 'transgender', 'nonbinary', 'decline to answer', 'other']
-            all_income_levels = [1, 2, 3, 4]  # Example: Adjust to your specific income levels
-            all_insurance_types = ['medicare', 'medicaid', 'medicare & medicaid', 'uninsured', 'private', 'military', 'unknown']
-            all_marital_status = ['single', 'married', 'widowed', 'divorced', 'domestic partnership', 'separated']
-            all_hispanic_latino = ['Yes', 'No']
+        # For 'Gender' summation - ensure all genders are included
+        st.write("Total Amount by Gender:")
+        gender_sum = df_year_filtered.groupby('Gender')['Amount'].sum(min_count=1).reset_index()
+        gender_sum = pd.DataFrame(all_genders, columns=['Gender']).merge(gender_sum, on='Gender', how='left')
+        st.dataframe(gender_sum)
 
-            # For 'State' summation - ensure all states are included
-            st.write("Total Amount by State:")
-            state_sum = df_year_filtered.groupby('Pt State')['Amount'].sum(min_count=1).reset_index()
-            state_sum = pd.DataFrame(all_states, columns=['Pt State']).merge(state_sum, on='Pt State', how='left')
-            st.dataframe(state_sum)
+        # For 'Income Level' summation - ensure all income levels are included
+        st.write("Total Amount by Income Level:")
+        income_sum = df_year_filtered.groupby('Income Level')['Amount'].sum(min_count=1).reset_index()
+        income_sum = pd.DataFrame(all_income_levels, columns=['Income Level']).merge(income_sum, on='Income Level', how='left')
+        st.dataframe(income_sum)
 
-            # For 'Gender' summation - ensure all genders are included
-            st.write("Total Amount by Gender:")
-            gender_sum = df_year_filtered.groupby('Gender')['Amount'].sum(min_count=1).reset_index()
-            gender_sum = pd.DataFrame(all_genders, columns=['Gender']).merge(gender_sum, on='Gender', how='left')
-            st.dataframe(gender_sum)
+        # For 'Insurance Type' summation - ensure all insurance types are included
+        st.write("Total Amount by Insurance Type:")
+        insurance_sum = df_year_filtered.groupby('Insurance Type')['Amount'].sum(min_count=1).reset_index()
+        insurance_sum = pd.DataFrame(all_insurance_types, columns=['Insurance Type']).merge(insurance_sum, on='Insurance Type', how='left')
+        st.dataframe(insurance_sum)
 
-            # For 'Income Level' summation - ensure all income levels are included
-            st.write("Total Amount by Income Level:")
-            income_sum = df_year_filtered.groupby('Income Level')['Amount'].sum(min_count=1).reset_index()
-            income_sum = pd.DataFrame(all_income_levels, columns=['Income Level']).merge(income_sum, on='Income Level', how='left')
-            st.dataframe(income_sum)
+        # For 'Marital Status' summation - ensure all marital status options are included
+        st.write("Total Amount by Marital Status:")
+        marital_status_sum = df_year_filtered.groupby('Marital Status')['Amount'].sum(min_count=1).reset_index()
+        marital_status_sum = pd.DataFrame(all_marital_status, columns=['Marital Status']).merge(marital_status_sum, on='Marital Status', how='left')
+        st.dataframe(marital_status_sum)
 
-            # For 'Insurance Type' summation - ensure all insurance types are included
-            st.write("Total Amount by Insurance Type:")
-            insurance_sum = df_year_filtered.groupby('Insurance Type')['Amount'].sum(min_count=1).reset_index()
-            insurance_sum = pd.DataFrame(all_insurance_types, columns=['Insurance Type']).merge(insurance_sum, on='Insurance Type', how='left')
-            st.dataframe(insurance_sum)
-
-            # For 'Marital Status' summation - ensure all marital status options are included
-            st.write("Total Amount by Marital Status:")
-            marital_status_sum = df_year_filtered.groupby('Marital Status')['Amount'].sum(min_count=1).reset_index()
-            marital_status_sum = pd.DataFrame(all_marital_status, columns=['Marital Status']).merge(marital_status_sum, on='Marital Status', how='left')
-            st.dataframe(marital_status_sum)
-
-            # For 'Hispanic Latino' summation - ensure all options are included
-            st.write("Total Amount by Hispanic Latino:")
-            hispanic_latino_sum = df_year_filtered.groupby('Hispanic/Latino')['Amount'].sum(min_count=1).reset_index()
-            hispanic_latino_sum = pd.DataFrame(all_hispanic_latino, columns=['Hispanic/Latino']).merge(hispanic_latino_sum, on='Hispanic/Latino', how='left')
-            st.dataframe(hispanic_latino_sum)
-
+        # For 'Hispanic Latino' summation - ensure all options are included
+        st.write("Total Amount by Hispanic Latino:")
+        hispanic_latino_sum = df_year_filtered.groupby('Hispanic/Latino')['Amount'].sum(min_count=1).reset_index()
+        hispanic_latino_sum = pd.DataFrame(all_hispanic_latino, columns=['Hispanic/Latino']).merge(hispanic_latino_sum, on='Hispanic/Latino', how='left')
+        st.dataframe(hispanic_latino_sum)
+    
     # Grant Time Difference Page
     elif page == "Grant Time Difference":
         st.subheader("Grant Time Difference Analysis")
@@ -249,6 +239,7 @@ if df is not None:
             st.dataframe(df_filtered[['Grant Req Date', 'Payment Submitted?', 'Time Difference (Days)']])
         else:
             st.write("Columns for 'Grant Req Date' and/or 'Payment Submitted?' are missing.")
+
 
 
 
