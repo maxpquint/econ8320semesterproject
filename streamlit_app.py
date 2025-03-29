@@ -1,4 +1,3 @@
-#semester project
 import pandas as pd
 import requests
 from io import BytesIO
@@ -109,6 +108,10 @@ def import_excel_from_github(sheet_name=0):
         if 'Grant Req Date' in df.columns:
             df['Grant Req Date'] = pd.to_datetime(df['Grant Req Date'], errors='coerce')
 
+        # Step 15: Add 'Year' column based on 'Grant Req Date' if not already present
+        if 'Grant Req Date' in df.columns:
+            df['Year'] = pd.DatetimeIndex(df['Grant Req Date']).year
+
         return df
     except Exception as e:
         st.error(f"Error loading Excel file: {e}")
@@ -205,6 +208,7 @@ elif page == "Grant Time Difference":
     # Show the data with the calculated time differences
     st.write("Time difference between Grant Req Date and Payment Submitted?")
     st.dataframe(df_grant_time[['Grant Req Date', 'Payment Submitted?', 'Time Difference (Days)']])
+
 
 
 
