@@ -108,6 +108,10 @@ def import_excel_from_github(sheet_name=0):
         if 'Grant Req Date' in df.columns:
             df['Grant Req Date'] = pd.to_datetime(df['Grant Req Date'], errors='coerce')
 
+        # Add a 'Year' column from 'Grant Req Date' to allow for year-based filtering
+        if 'Grant Req Date' in df.columns:
+            df['Year'] = df['Grant Req Date'].dt.year
+
         return df
     except Exception as e:
         st.error(f"Error loading Excel file: {e}")
@@ -242,6 +246,7 @@ elif page == "Grant Time Difference":
 
     csv = convert_df(df_filtered)
     st.download_button("Download Time Difference Data", data=csv, file_name="time_difference.csv", mime="text/csv")
+
 
 
 
