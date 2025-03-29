@@ -197,43 +197,21 @@ if df is not None:
             # Filter data by selected year
             df_year_filtered = df[df['Year'] == year_filter]
 
-            # Display available filters for demographics
-            state_filter = st.multiselect("Select State", options=df_year_filtered['Pt State'].dropna().unique(), default=df_year_filtered['Pt State'].dropna().unique())
-            gender_filter = st.multiselect("Select Gender", options=df_year_filtered['Gender'].dropna().unique(), default=df_year_filtered['Gender'].dropna().unique())
-            income_filter = st.multiselect("Select Income Level", options=df_year_filtered['Income Level'].dropna().unique(), default=df_year_filtered['Income Level'].dropna().unique())
-            insurance_filter = st.multiselect("Select Insurance Type", options=df_year_filtered['Insurance Type'].dropna().unique(), default=df_year_filtered['Insurance Type'].dropna().unique())
-
-            # Apply filters on the filtered year data
-            df_filtered = df_year_filtered[
-                df_year_filtered['Pt State'].isin(state_filter) &
-                df_year_filtered['Gender'].isin(gender_filter) &
-                df_year_filtered['Income Level'].isin(income_filter) &
-                df_year_filtered['Insurance Type'].isin(insurance_filter)
-            ]
-
-            # Remove rows with NaN in the 'Amount' column before summing
-            df_filtered_cleaned = df_filtered.dropna(subset=['Amount'])
-
-            # Display sums for each demographic category
-
-            # State Sum
-            state_sum = df_filtered_cleaned.groupby('Pt State')['Amount'].sum().reset_index()
+            # Display available options for demographics, no dropdown filters
             st.write("Total Amount by State:")
+            state_sum = df_year_filtered.groupby('Pt State')['Amount'].sum().reset_index()
             st.dataframe(state_sum)
 
-            # Gender Sum
-            gender_sum = df_filtered_cleaned.groupby('Gender')['Amount'].sum().reset_index()
             st.write("Total Amount by Gender:")
+            gender_sum = df_year_filtered.groupby('Gender')['Amount'].sum().reset_index()
             st.dataframe(gender_sum)
 
-            # Income Level Sum
-            income_sum = df_filtered_cleaned.groupby('Income Level')['Amount'].sum().reset_index()
             st.write("Total Amount by Income Level:")
+            income_sum = df_year_filtered.groupby('Income Level')['Amount'].sum().reset_index()
             st.dataframe(income_sum)
 
-            # Insurance Type Sum
-            insurance_sum = df_filtered_cleaned.groupby('Insurance Type')['Amount'].sum().reset_index()
             st.write("Total Amount by Insurance Type:")
+            insurance_sum = df_year_filtered.groupby('Insurance Type')['Amount'].sum().reset_index()
             st.dataframe(insurance_sum)
 
     elif page == "Grant Time Difference":
