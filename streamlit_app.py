@@ -125,7 +125,7 @@ def import_excel_from_github(sheet_name=0):
         if 'Hispanic/Latino' in df.columns:
             df['Hispanic/Latino'] = df['Hispanic/Latino'].apply(
                 lambda x: 'Yes' if 'hispanic' in str(x).lower() or 'latino' in str(x).lower() 
-                else ('No' if 'non-hispanic' in str(x).lower() or 'non latino' in str(x).lower() 
+                else ('No' if 'non-hispanic' in str(x).lower() or 'non latino' in str(x).lower() or 'non-hispanic latino' in str(x).lower() 
                       else np.nan)
             )
 
