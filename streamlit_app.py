@@ -4,6 +4,7 @@ import requests
 from io import BytesIO
 from thefuzz import process
 import streamlit as st
+import io
 import numpy as np  # For NaN
 
 def import_excel_from_github(sheet_name=0):
@@ -121,106 +122,110 @@ def import_excel_from_github(sheet_name=0):
 # Streamlit interface
 st.title('UNO Service Learning Data Dashboard')
 
+# Sidebar navigation
+pages = ["Home", "Demographic Breakout", "Grant Time Difference"]
+page = st.sidebar.radio("Select a page:", pages)
+
 # Load the data
 df = import_excel_from_github()
 
-# Check and clean up column names to remove extra spaces (if any)
 if df is not None:
-    df.columns = df.columns.str.strip()  # Strip spaces from column names
-
-    # Ensure 'Year' column exists; if not, create it from the 'Grant Req Date' column
-    if 'Year' not in df.columns and 'Grant Req Date' in df.columns:
-        df['Year'] = df['Grant Req Date'].dt.year
-
-    # Verify if 'Year' column exists after cleanup
-    if 'Year' not in df.columns:
-        st.error("The 'Year' column is missing from the dataset. Please ensure the dataset includes a 'Year' or 'Grant Req Date' column.")
-    else:
-        # Home page
-        page = st.sidebar.selectbox("Select a Page", ["Home", "Demographic Breakout", "Grant Payment Time Difference"])
+    if page == "Home":
+        # Display basic data and filtering
+        st.subheader("Pending Applications")
         
-        # Home page
-        if page == "Home":
-            st.subheader("Home Page")
-            st.write("This is the home page for the UNO Service Learning Data Dashboard.")
-            st.write("Here you can navigate to various analysis pages using the sidebar.")
-            st.write("You can explore data related to demographics, payment timing, and other key metrics.")
+        # Standardizing and filtering 'Request Status' to handle possible variations
+        if 'Request Status' in df.columns:
+            # Filter the DataFrame to show rows where 'Request Status' ends with 'pending', case insensitive
+            pending_df = df[df['Request Status'].str.endswith('pending', na=False)]  # Make case-insensitive check
             
-            # Display the first few rows of the data
-            st.write("Preview of the data:")
-            st.dataframe(df.head())  # Show the first few rows of the cleaned data
+            # Display the rows where request status ends with 'pending'
+            st.subheader("Rows where 'Request Status' ends with 'Pending'")
 
-            # Add functionality to download the cleaned data as a CSV
-            @st.cache_data
-            def convert_df(df):
-                return df.to_csv(index=False)
-
-            csv = convert_df(df)
-
-            # Provide a download button for the CSV file
-            st.download_button(
-                label="Download Cleaned Data as CSV",
-                data=csv,
-                file_name='cleaned_data.csv',
-                mime='text/csv'
-            )
-
-        # Demographic Breakout Page
-        elif page == "Demographic Breakout":
-            st.subheader("Demographic Data Breakdown")
-
-            # Filter by year
-            year_filter = st.selectbox("Select Year", sorted(df['Year'].dropna().unique()))
-
-            # Filter data by year
-            df_year_filtered = df[df['Year'] == year_filter]
-
-            # Display sums for State, Gender, Income Level, Insurance Type, and other demographic categories
-            st.write(f"Data for Year {year_filter}:")
-
-            # State Sum
-            state_sum = df_year_filtered.groupby('Pt State')['Amount'].sum().reset_index()
-            st.write("Total Amount by State:")
-            st.dataframe(state_sum)
-
-            # Gender Sum
-            gender_sum = df_year_filtered.groupby('Gender')['Amount'].sum().reset_index()
-            st.write("Total Amount by Gender:")
-            st.dataframe(gender_sum)
-
-            # Income Level Sum
-            income_sum = df_year_filtered.groupby('Income Level')['Amount'].sum().reset_index()
-            st.write("Total Amount by Income Level:")
-            st.dataframe(income_sum)
-
-            # Insurance Type Sum
-            insurance_sum = df_year_filtered.groupby('Insurance Type')['Amount'].sum().reset_index()
-            st.write("Total Amount by Insurance Type:")
-            st.dataframe(insurance_sum)
-
-        # Grant Payment Time Difference Page
-        elif page == "Grant Payment Time Difference":
-            # Display the time difference between "Grant Req Date" and "Payment Submitted?"
-            if df is not None:
-                st.subheader("Grant Payment Time Difference")
-
-                # Ensure that both columns are datetime types (if they're not already)
-                if 'Grant Req Date' in df.columns and 'Payment Submitted?' in df.columns:
-                    # Filter out rows with missing values in either 'Grant Req Date' or 'Payment Submitted?'
-                    df_filtered = df.dropna(subset=['Grant Req Date', 'Payment Submitted?'])
-
-                    # Calculate the difference in days (rounding to the nearest whole number)
-                    df_filtered['Time Difference (Days)'] = (df_filtered['Payment Submitted?'] - df_filtered['Grant Req Date']).dt.days
-
-                    # Display the result
-                    st.write(f"Showing the time difference (in days) between the 'Grant Req Date' and 'Payment Submitted?' columns:")
-
-                    # Show the table with the time difference
-                    st.dataframe(df_filtered[['Grant Req Date', 'Payment Submitted?', 'Time Difference (Days)']])
-                else:
-                    st.write("Columns 'Grant Req Date' or 'Payment Submitted?' are missing or not formatted correctly.")
+            if pending_df.empty:
+                st.write("No pending requests found.")
             else:
-                st.write("Data not available for Grant Payment Time Difference.")
+                st.dataframe(pending_df)  # Display the filtered rows like the raw data
+
+        # Additional Filtering or Analysis options
+        st.subheader("Data Analysis")
+        st.write(f"Total number of rows in the dataset: {df.shape[0]}")
+
+        # Add functionality to download the cleaned data as a CSV
+        @st.cache_data
+        def convert_df(df):
+            return df.to_csv(index=False)
+
+        csv = convert_df(df)
+
+        # Provide a download button for the CSV file
+        st.download_button(
+            label="Download Cleaned Data as CSV",
+            data=csv,
+            file_name='cleaned_data.csv',
+            mime='text/csv'
+        )
+
+    elif page == "Demographic Breakout":
+        st.subheader("Demographic Data Breakdown")
+
+        # Filter by Year (first filter)
+        year_filter = st.selectbox("Select Year", sorted(df['Year'].dropna().unique()))
+
+        # Filter data by selected year
+        df_year_filtered = df[df['Year'] == year_filter]
+
+        # Display available filters for demographics
+        state_filter = st.multiselect("Select State", options=df_year_filtered['Pt State'].dropna().unique(), default=df_year_filtered['Pt State'].dropna().unique())
+        gender_filter = st.multiselect("Select Gender", options=df_year_filtered['Gender'].dropna().unique(), default=df_year_filtered['Gender'].dropna().unique())
+        income_filter = st.multiselect("Select Income Level", options=df_year_filtered['Income Level'].dropna().unique(), default=df_year_filtered['Income Level'].dropna().unique())
+        insurance_filter = st.multiselect("Select Insurance Type", options=df_year_filtered['Insurance Type'].dropna().unique(), default=df_year_filtered['Insurance Type'].dropna().unique())
+
+        # Apply filters on the filtered year data
+        df_filtered = df_year_filtered[
+            df_year_filtered['Pt State'].isin(state_filter) &
+            df_year_filtered['Gender'].isin(gender_filter) &
+            df_year_filtered['Income Level'].isin(income_filter) &
+            df_year_filtered['Insurance Type'].isin(insurance_filter)
+        ]
+
+        # Remove rows with NaN in the 'Amount' column before summing
+        df_filtered_cleaned = df_filtered.dropna(subset=['Amount'])
+
+        # Display sums for each demographic category
+
+        # State Sum
+        state_sum = df_filtered_cleaned.groupby('Pt State')['Amount'].sum().reset_index()
+        st.write("Total Amount by State:")
+        st.dataframe(state_sum)
+
+        # Gender Sum
+        gender_sum = df_filtered_cleaned.groupby('Gender')['Amount'].sum().reset_index()
+        st.write("Total Amount by Gender:")
+        st.dataframe(gender_sum)
+
+        # Income Level Sum
+        income_sum = df_filtered_cleaned.groupby('Income Level')['Amount'].sum().reset_index()
+        st.write("Total Amount by Income Level:")
+        st.dataframe(income_sum)
+
+        # Insurance Type Sum
+        insurance_sum = df_filtered_cleaned.groupby('Insurance Type')['Amount'].sum().reset_index()
+        st.write("Total Amount by Insurance Type:")
+        st.dataframe(insurance_sum)
+
+    elif page == "Grant Time Difference":
+        st.subheader("Time Difference Between Grant Request Date and Payment Submitted")
+
+        # Filter rows with valid Grant Req Date and Payment Submitted? date values
+        df_grant_time_filtered = df.dropna(subset=['Grant Req Date', 'Payment Submitted?'])
+
+        # Calculate time difference in days between 'Grant Req Date' and 'Payment Submitted?'
+        df_grant_time_filtered['Grant Time Difference (days)'] = (df_grant_time_filtered['Payment Submitted?'] - df_grant_time_filtered['Grant Req Date']).dt.days
+
+        # Display the time differences
+        st.write("Time Difference (in days) between Grant Request Date and Payment Submitted?")
+        st.dataframe(df_grant_time_filtered[['Grant Req Date', 'Payment Submitted?', 'Grant Time Difference (days)']])
 else:
     st.write("Failed to load and clean data.")
 
