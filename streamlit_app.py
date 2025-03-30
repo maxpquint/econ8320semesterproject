@@ -260,10 +260,22 @@ if df is not None:
 
             st.write("Unique Patients with Remaining Balance > 0:")
             st.dataframe(df_filtered_greater_than_zero[['Patient ID#', 'Remaining Balance']])
+
+            # Summation by Type of Assistance (CLASS)
+            if 'Type of Assistance (CLASS)' in df.columns:
+                st.write("Total Amount by Type of Assistance (CLASS):")
+                
+                # Group by 'Type of Assistance (CLASS)' and sum the 'Amount'
+                assistance_sum = df_year_filtered.groupby('Type of Assistance (CLASS)')['Amount'].sum(min_count=1).reset_index()
+                
+                # Display the summed amounts for each type of assistance
+                st.dataframe(assistance_sum)
+            
         else:
             st.write("The 'Year' column is missing in the dataset.")
     else:
         st.write("The 'Remaining Balance' column is missing in the dataset.")
+
 
 
 
