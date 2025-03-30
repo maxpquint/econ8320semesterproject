@@ -225,41 +225,46 @@ if df is not None:
     elif page == "Remaining Balance Analysis":
         st.subheader("Remaining Balance Analysis")
 
-        # Ensure the 'Remaining Balance' column is numeric
-        if 'Remaining Balance' in df.columns:
-            df['Remaining Balance'] = pd.to_numeric(df['Remaining Balance'], errors='coerce')  # Coerce errors to NaN
+    # Ensure the 'Remaining Balance' column is numeric
+    if 'Remaining Balance' in df.columns:
+        df['Remaining Balance'] = pd.to_numeric(df['Remaining Balance'], errors='coerce')  # Coerce errors to NaN
 
-            # Add Year filter
-            if 'Year' in df.columns:
-                # Let the user select a year
-                year = st.selectbox("Select Year", df['Year'].unique())
-                
-                # Filter the data based on the selected year
-                df_year_filtered = df[df['Year'] == year]
+        # Add Year filter
+        if 'Year' in df.columns:
+            # Let the user select a year
+            year = st.selectbox("Select Year", df['Year'].unique())
+            
+            # Filter the data based on the selected year
+            df_year_filtered = df[df['Year'] == year]
 
-                # Filter for Patient IDs with Remaining Balance <= 0
-                df_filtered_zero_or_less = df_year_filtered[df_year_filtered['Remaining Balance'] <= 0]
-                # Filter for Patient IDs with Remaining Balance > 0
-                df_filtered_greater_than_zero = df_year_filtered[df_year_filtered['Remaining Balance'] > 0]
+            # Remove duplicates based on 'Patient ID#' to get only unique patients
+            df_year_filtered_unique = df_year_filtered.drop_duplicates(subset='Patient ID#')
 
-                # Count the number of unique Patient IDs for both conditions
-                patient_count_zero_or_less = df_filtered_zero_or_less['Patient ID#'].nunique()
-                patient_count_greater_than_zero = df_filtered_greater_than_zero['Patient ID#'].nunique()
+            # Filter for Patient IDs with Remaining Balance <= 0
+            df_filtered_zero_or_less = df_year_filtered_unique[df_year_filtered_unique['Remaining Balance'] <= 0]
 
-                # Display the counts of Patient IDs
-                st.write(f"Number of Patients with Remaining Balance <= 0 for Year {year}: {patient_count_zero_or_less}")
-                st.write(f"Number of Patients with Remaining Balance > 0 for Year {year}: {patient_count_greater_than_zero}")
+            # Filter for Patient IDs with Remaining Balance > 0
+            df_filtered_greater_than_zero = df_year_filtered_unique[df_year_filtered_unique['Remaining Balance'] > 0]
 
-                # Optionally, display the filtered rows for user review
-                st.write("Patients with Remaining Balance <= 0:")
-                st.dataframe(df_filtered_zero_or_less[['Patient ID#', 'Remaining Balance']])
+            # Count the number of unique Patient IDs for both conditions
+            patient_count_zero_or_less = df_filtered_zero_or_less['Patient ID#'].nunique()
+            patient_count_greater_than_zero = df_filtered_greater_than_zero['Patient ID#'].nunique()
 
-                st.write("Patients with Remaining Balance > 0:")
-                st.dataframe(df_filtered_greater_than_zero[['Patient ID#', 'Remaining Balance']])
-            else:
-                st.write("The 'Year' column is missing in the dataset.")
+            # Display the counts of Patient IDs
+            st.write(f"Number of Unique Patients with Remaining Balance <= 0 for Year {year}: {patient_count_zero_or_less}")
+            st.write(f"Number of Unique Patients with Remaining Balance > 0 for Year {year}: {patient_count_greater_than_zero}")
+
+            # Optionally, display the filtered rows for user review
+            st.write("Unique Patients with Remaining Balance <= 0:")
+            st.dataframe(df_filtered_zero_or_less[['Patient ID#', 'Remaining Balance']])
+
+            st.write("Unique Patients with Remaining Balance > 0:")
+            st.dataframe(df_filtered_greater_than_zero[['Patient ID#', 'Remaining Balance']])
         else:
-            st.write("The 'Remaining Balance' column is missing in the dataset.")
+            st.write("The 'Year' column is missing in the dataset.")
+    else:
+        st.write("The 'Remaining Balance' column is missing in the dataset.")
+
 
 
 
