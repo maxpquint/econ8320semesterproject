@@ -142,7 +142,7 @@ df = import_excel_from_github()
 # Ensure the DataFrame was successfully loaded
 if df is not None:
     # Sidebar navigation
-    page = st.sidebar.selectbox("Select a Page", ["Home", "Demographic Breakout", "Grant Time Difference"])
+    page = st.sidebar.selectbox("Select a Page", ["Home", "Demographic Breakout", "Grant Time Difference", "Remaining Balance Analysis"])
 
     # Home Page
     if page == "Home":
@@ -209,33 +209,57 @@ if df is not None:
         insurance_sum = pd.DataFrame(all_insurance_types, columns=['Insurance Type']).merge(insurance_sum, on='Insurance Type', how='left')
         st.dataframe(insurance_sum)
 
-        # For 'Marital Status' summation - ensure all marital status options are included
+        # For 'Marital Status' summation - ensure all marital statuses are included
         st.write("Total Amount by Marital Status:")
-        marital_status_sum = df_year_filtered.groupby('Marital Status')['Amount'].sum(min_count=1).reset_index()
-        marital_status_sum = pd.DataFrame(all_marital_status, columns=['Marital Status']).merge(marital_status_sum, on='Marital Status', how='left')
-        st.dataframe(marital_status_sum)
+        marital_sum = df_year_filtered.groupby('Marital Status')['Amount'].sum(min_count=1).reset_index()
+        marital_sum = pd.DataFrame(all_marital_status, columns=['Marital Status']).merge(marital_sum, on='Marital Status', how='left')
+        st.dataframe(marital_sum)
 
-        # For 'Hispanic Latino' summation - ensure all options are included
-        st.write("Total Amount by Hispanic Latino:")
-        hispanic_latino_sum = df_year_filtered.groupby('Hispanic/Latino')['Amount'].sum(min_count=1).reset_index()
-        hispanic_latino_sum = pd.DataFrame(all_hispanic_latino, columns=['Hispanic/Latino']).merge(hispanic_latino_sum, on='Hispanic/Latino', how='left')
-        st.dataframe(hispanic_latino_sum)
-    
-    # Grant Time Difference Page
-    elif page == "Grant Time Difference":
-        st.subheader("Grant Time Difference Analysis")
+        # For 'Hispanic/Latino' summation - ensure all statuses are included
+        st.write("Total Amount by Hispanic/Latino:")
+        hispanic_sum = df_year_filtered.groupby('Hispanic/Latino')['Amount'].sum(min_count=1).reset_index()
+        hispanic_sum = pd.DataFrame(all_hispanic_latino, columns=['Hispanic/Latino']).merge(hispanic_sum, on='Hispanic/Latino', how='left')
+        st.dataframe(hispanic_sum)
 
-        # Filter rows that have both 'Grant Req Date' and 'Payment Submitted?'
-        if 'Grant Req Date' in df.columns and 'Payment Submitted?' in df.columns:
-            df_filtered = df.dropna(subset=['Grant Req Date', 'Payment Submitted?'])
+    # Remaining Balance Analysis Page
+    elif page == "Remaining Balance Analysis":
+        st.subheader("Remaining Balance Analysis")
 
-            # Calculate the time difference between the 'Grant Req Date' and 'Payment Submitted?'
-            df_filtered['Time Difference (Days)'] = (df_filtered['Payment Submitted?'] - df_filtered['Grant Req Date']).dt.days
+        # Ensure the 'Remaining Balance' column is numeric
+        if 'Remaining Balance' in df.columns:
+            df['Remaining Balance'] = pd.to_numeric(df['Remaining Balance'], errors='coerce')  # Coerce errors to NaN
 
-            # Display the filtered DataFrame with time difference
-            st.dataframe(df_filtered[['Grant Req Date', 'Payment Submitted?', 'Time Difference (Days)']])
+            # Add Year filter
+            if 'Year' in df.columns:
+                # Let the user select a year
+                year = st.selectbox("Select Year", df['Year'].unique())
+                
+                # Filter the data based on the selected year
+                df_year_filtered = df[df['Year'] == year]
+
+                # Filter for Patient IDs with Remaining Balance <= 0
+                df_filtered_zero_or_less = df_year_filtered[df_year_filtered['Remaining Balance'] <= 0]
+                # Filter for Patient IDs with Remaining Balance > 0
+                df_filtered_greater_than_zero = df_year_filtered[df_year_filtered['Remaining Balance'] > 0]
+
+                # Count the number of unique Patient IDs for both conditions
+                patient_count_zero_or_less = df_filtered_zero_or_less['Patient ID#'].nunique()
+                patient_count_greater_than_zero = df_filtered_greater_than_zero['Patient ID#'].nunique()
+
+                # Display the counts of Patient IDs
+                st.write(f"Number of Patients with Remaining Balance <= 0 for Year {year}: {patient_count_zero_or_less}")
+                st.write(f"Number of Patients with Remaining Balance > 0 for Year {year}: {patient_count_greater_than_zero}")
+
+                # Optionally, display the filtered rows for user review
+                st.write("Patients with Remaining Balance <= 0:")
+                st.dataframe(df_filtered_zero_or_less[['Patient ID#', 'Remaining Balance']])
+
+                st.write("Patients with Remaining Balance > 0:")
+                st.dataframe(df_filtered_greater_than_zero[['Patient ID#', 'Remaining Balance']])
+            else:
+                st.write("The 'Year' column is missing in the dataset.")
         else:
-            st.write("Columns for 'Grant Req Date' and/or 'Payment Submitted?' are missing.")
+            st.write("The 'Remaining Balance' column is missing in the dataset.")
 
 
 
