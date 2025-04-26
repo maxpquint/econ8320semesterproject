@@ -3,3 +3,5 @@ thefuzz
 openpyxl
 datetime
 requests
+pandas
+numpy
