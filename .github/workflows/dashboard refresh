@@ -1,0 +1,41 @@
+name: Excel File Change Refresh Dashboard
+
+on:
+  push:
+    paths:
+      - 'UNO Service Learning Data Sheet De-Identified Version.xlsx' 
+  workflow_dispatch:  
+
+jobs:
+  refresh-dashboard:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run dashboard script (streamlit_app.py)
+        run: |
+          python streamlit_app.py  
+
+      - name: Touch streamlit_app.py to trigger Streamlit redeploy
+        run: |
+          # Make a small harmless change (e.g., adding a timestamp) to streamlit_app.py
+          echo "# Auto-refresh triggered at $(date -u)" >> streamlit_app.py
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git diff --quiet || git commit -m "Auto: refresh dashboard with updated data"
+          git push
