@@ -5,3 +5,5 @@ datetime
 requests
 pandas
 numpy
+plotly
+plotly.express
