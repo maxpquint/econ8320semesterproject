@@ -1,0 +1,35 @@
+name: Update Streamlit App
+
+on:
+  push:
+    paths:
+      - 'UNO Service Learning Data Sheet De-Identified Version.xlsx'
+
+jobs:
+  update-app:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas openpyxl
+
+      - name: Run update script
+        run: python update_streamlit_app.py
+
+      - name: Commit and push updated streamlit_app.py
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add streamlit_app.py
+          git commit -m "Auto-update streamlit_app.py from Excel data"
+          git push
+        continue-on-error: true  # Optional: prevents failure if no changes
