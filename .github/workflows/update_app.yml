@@ -23,7 +23,7 @@ jobs:
           pip install pandas openpyxl
 
       - name: Run update script
-        run: python update_streamlit_app.py
+        run: python update_streamlit.py
 
       - name: Commit and push updated streamlit_app.py
         run: |
